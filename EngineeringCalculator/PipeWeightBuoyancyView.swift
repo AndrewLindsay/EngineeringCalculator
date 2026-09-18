@@ -162,11 +162,9 @@ struct PipeWeightBuoyancyView: View {
 
             Section {
                 DisclosureGroup("Calculation Details", isExpanded: $showDetails) {
-                    Text("The layer table is generated from the same intermediate layer results used to calculate the totals.")
-                    Text("Dry pipe mass is the sum of all solid concentric layers. Internal contents are excluded from the dry pipe result.")
-                    Text("Buoyancy uses the displaced external-fluid volume based on the final outside diameter.")
-                    Text("Net submerged weight = (pipe mass + contents mass − displaced external-fluid mass) × g.")
-                    Text("g = 9.80665 m/s²")
+                    if let details = CalculationRegistry.definition(id: "pipeWeightBuoyancy")?.details {
+                        CalculationDetailsView(details: details)
+                    }
                 }
             }
         }
