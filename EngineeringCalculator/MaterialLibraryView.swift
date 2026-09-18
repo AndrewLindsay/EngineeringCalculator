@@ -56,7 +56,6 @@ private struct MaterialDetailView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     let materialID: UUID
     @State private var editing = false
-
     private var material: EngineeringMaterial? { store.allMaterials.first { $0.id == materialID } }
 
     var body: some View {
@@ -132,9 +131,9 @@ struct MaterialEditorView: View {
         _name = State(initialValue: existing?.name ?? "")
         _category = State(initialValue: existing?.category ?? "Other")
         _grade = State(initialValue: existing?.grade ?? "")
-        _density = State(initialValue: existing?.densityKgM3.map(String.init) ?? "")
-        _conductivity = State(initialValue: existing?.thermalConductivityWMK.map(String.init) ?? "")
-        _heatCapacity = State(initialValue: existing?.specificHeatCapacityJkgK.map(String.init) ?? "")
+        _density = State(initialValue: existing?.densityKgM3.map { String($0) } ?? "")
+        _conductivity = State(initialValue: existing?.thermalConductivityWMK.map { String($0) } ?? "")
+        _heatCapacity = State(initialValue: existing?.specificHeatCapacityJkgK.map { String($0) } ?? "")
         _source = State(initialValue: existing?.source ?? "")
         _notes = State(initialValue: existing?.notes ?? "")
     }
