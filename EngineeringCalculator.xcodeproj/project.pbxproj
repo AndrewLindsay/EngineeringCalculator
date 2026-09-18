@@ -36,7 +36,7 @@
 		F007 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		GITIGNORE /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		PRODUCTAPP /* EngineeringCalculator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EngineeringCalculator.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		PRODUCTTEST /* .xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = .xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		PRODUCTTEST /* EngineeringCalculatorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EngineeringCalculatorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		README /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -103,7 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				PRODUCTAPP /* EngineeringCalculator.app */,
-				PRODUCTTEST /* .xctest */,
+				PRODUCTTEST /* EngineeringCalculatorTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -143,7 +143,7 @@
 			);
 			name = EngineeringCalculatorTests;
 			productName = EngineeringCalculatorTests;
-			productReference = PRODUCTTEST /* .xctest */;
+			productReference = PRODUCTTEST /* EngineeringCalculatorTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -373,6 +373,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.EngineeringCalculatorTests;
+				PRODUCT_MODULE_NAME = EngineeringCalculatorTests;
+				PRODUCT_NAME = EngineeringCalculatorTests;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_VERSION = 5.0;
@@ -390,6 +392,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.EngineeringCalculatorTests;
+				PRODUCT_MODULE_NAME = EngineeringCalculatorTests;
+				PRODUCT_NAME = EngineeringCalculatorTests;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_VERSION = 5.0;

@@ -14,7 +14,20 @@ struct PipeLayer: Identifiable, Hashable {
     }
 }
 
+struct CalculatedPipeLayer: Identifiable, Hashable {
+    let id: UUID
+    let name: String
+    let innerDiameterM: Double
+    let thicknessM: Double
+    let outerDiameterM: Double
+    let densityKgM3: Double
+    let areaM2: Double
+    let massKgPerM: Double
+    let weightKNPerM: Double
+}
+
 struct PipeWeightBuoyancyResult {
+    let layers: [CalculatedPipeLayer]
     let finalOuterDiameterM: Double
     let pipeMassKgPerM: Double
     let pipeWeightKNPerM: Double
@@ -36,23 +49,42 @@ enum PipeWeightBuoyancyCalculator {
         precondition(gravity > 0)
 
         var currentDiameter = internalDiameterM
-        var pipeMass = 0.0
+        var calculatedLayers: [CalculatedPipeLayer] = []
 
         for layer in layers {
-            let outerDiameter = currentDiameter + 2.0 * max(0, layer.thicknessM)
-            let area = .pi / 4.0 * (outerDiameter * outerDiameter - currentDiameter * currentDiameter)
-            pipeMass += area * max(0, layer.densityKgM3)
+            let thickness = max(0, layer.thicknessM)
+            let density = max(0, layer.densityKgM3)
+            let outerDiameter = currentDiameter + 2.0 * thickness
+            let area = .pi / 4.0 * (
+                outerDiameter * outerDiameter - currentDiameter * currentDiameter
+            )
+            let mass = area * density
+
+            calculatedLayers.append(
+                CalculatedPipeLayer(
+                    id: layer.id,
+                    name: layer.name,
+                    innerDiameterM: currentDiameter,
+                    thicknessM: thickness,
+                    outerDiameterM: outerDiameter,
+                    densityKgM3: density,
+                    areaM2: area,
+                    massKgPerM: mass,
+                    weightKNPerM: mass * gravity / 1000.0
+                )
+            )
             currentDiameter = outerDiameter
         }
 
+        let pipeMass = calculatedLayers.reduce(0) { $0 + $1.massKgPerM }
         let internalArea = .pi / 4.0 * internalDiameterM * internalDiameterM
         let displacedArea = .pi / 4.0 * currentDiameter * currentDiameter
-
         let contentsMass = internalArea * max(0, internalFluidDensityKgM3)
         let displacedMass = displacedArea * max(0, externalFluidDensityKgM3)
         let submergedEquivalentMass = pipeMass + contentsMass - displacedMass
 
         return PipeWeightBuoyancyResult(
+            layers: calculatedLayers,
             finalOuterDiameterM: currentDiameter,
             pipeMassKgPerM: pipeMass,
             pipeWeightKNPerM: pipeMass * gravity / 1000.0,

@@ -1,18 +1,17 @@
-# Engineering Calculator v0.1
+# Engineering Calculator v0.2
 
 A modular SwiftUI engineering-calculation app for iOS and macOS.
 
-## v0.1
-- Rearrangeable calculation landing page
-- Persistent calculator order using AppStorage
-- Pipe Weight & Buoyancy calculator
-- Internal diameter or radius input
-- Pipe wall plus optional concentric coating/weight layers
-- Dry pipe mass and weight per metre
-- Internal contents mass
-- External-fluid displacement
-- Net submerged mass equivalent and submerged weight
-- XCTest calculation tests
+## v0.2 changes
+- Added an auditable layer-stack summary generated from the actual calculation intermediates.
+- Table shows layer number, name, ID, thickness, OD, density, cross-sectional area and mass per metre.
+- Added per-layer calculated result model.
+- Added Move Up / Move Down controls for external layers.
+- Added direct layer deletion using a trash control.
+- Pipe wall is always the fixed innermost Layer 1 and cannot be deleted or moved.
+- Added editable pipe-layer name.
+- Expanded unit tests for layer continuity, total mass and reordering.
+- Retains the v0.1 modular landing page and persistent calculator ordering.
 
 ## Calculation convention
 The dry pipe result excludes internal contents and buoyancy.
@@ -29,13 +28,3 @@ with `g = 9.80665 m/s²`.
 3. Add a `CalculationDefinition` to `CalculationRegistry.all`.
 4. Add its destination to the switch in `HomeView`.
 5. Add unit tests for the equations.
-
-## Git
-After opening the project, initialize Git from Terminal:
-
-    cd /path/to/EngineeringCalculator_v0_1
-    git init
-    git add .
-    git commit -m "Engineering Calculator v0.1"
-
-Then create an empty GitHub repository and add its remote.
