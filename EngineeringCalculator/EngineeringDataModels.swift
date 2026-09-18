@@ -11,6 +11,8 @@ struct EngineeringMaterial: Identifiable, Hashable, Codable {
     var name: String
     var category: String
     var densityKgM3: Double?
+    var grade: String?
+    var isBuiltIn: Bool
     var thermalConductivityWMK: Double?
     var specificHeatCapacityJkgK: Double?
     var source: String?
@@ -21,15 +23,19 @@ struct EngineeringMaterial: Identifiable, Hashable, Codable {
         name: String,
         category: String = "General",
         densityKgM3: Double? = nil,
+        grade: String? = nil,
         thermalConductivityWMK: Double? = nil,
         specificHeatCapacityJkgK: Double? = nil,
         source: String? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        isBuiltIn: Bool = false
     ) {
         self.id = id
         self.name = name
         self.category = category
         self.densityKgM3 = densityKgM3
+        self.grade = grade
+        self.isBuiltIn = isBuiltIn
         self.thermalConductivityWMK = thermalConductivityWMK
         self.specificHeatCapacityJkgK = specificHeatCapacityJkgK
         self.source = source

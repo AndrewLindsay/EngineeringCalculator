@@ -49,6 +49,10 @@ struct HomeView: View {
                 #if os(iOS)
                 EditButton()
                 #endif
+                NavigationLink(value: "materials") {
+                    Image(systemName: "books.vertical")
+                }
+                .help("Material library")
                 NavigationLink(value: "settings") {
                     Image(systemName: "gearshape")
                 }
@@ -58,6 +62,8 @@ struct HomeView: View {
                 switch id {
                 case "pipeWeightBuoyancy":
                     PipeWeightBuoyancyView()
+                case "materials":
+                    MaterialLibraryView()
                 case "settings":
                     SettingsView()
                 default:

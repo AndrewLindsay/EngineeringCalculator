@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		6F25CC72305D4DAF00862599 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6F25CC71305D4DAF00862599 /* Assets.xcassets */; };
+		6F347569305D89420071CFC6 /* MaterialLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F347567305D89420071CFC6 /* MaterialLibrary.swift */; };
+		6F34756A305D89420071CFC6 /* MaterialLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F347568305D89420071CFC6 /* MaterialLibraryView.swift */; };
 		A001 /* EngineeringCalculatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* EngineeringCalculatorApp.swift */; };
 		A002 /* CalculationDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* CalculationDefinition.swift */; };
 		A003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* HomeView.swift */; };
@@ -32,6 +34,8 @@
 
 /* Begin PBXFileReference section */
 		6F25CC71305D4DAF00862599 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		6F347567305D89420071CFC6 /* MaterialLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibrary.swift; sourceTree = "<group>"; };
+		6F347568305D89420071CFC6 /* MaterialLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibraryView.swift; sourceTree = "<group>"; };
 		F001 /* EngineeringCalculatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringCalculatorApp.swift; sourceTree = "<group>"; };
 		F002 /* CalculationDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDefinition.swift; sourceTree = "<group>"; };
 		F003 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -78,6 +82,8 @@
 		GAPP /* EngineeringCalculator */ = {
 			isa = PBXGroup;
 			children = (
+				6F347567305D89420071CFC6 /* MaterialLibrary.swift */,
+				6F347568305D89420071CFC6 /* MaterialLibraryView.swift */,
 				F001 /* EngineeringCalculatorApp.swift */,
 				F002 /* CalculationDefinition.swift */,
 				F003 /* HomeView.swift */,
@@ -221,6 +227,8 @@
 			files = (
 				A001 /* EngineeringCalculatorApp.swift in Sources */,
 				A002 /* CalculationDefinition.swift in Sources */,
+				6F347569305D89420071CFC6 /* MaterialLibrary.swift in Sources */,
+				6F34756A305D89420071CFC6 /* MaterialLibraryView.swift in Sources */,
 				A003 /* HomeView.swift in Sources */,
 				A004 /* PipeWeightBuoyancyCalculator.swift in Sources */,
 				A005 /* PipeWeightBuoyancyView.swift in Sources */,
