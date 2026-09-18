@@ -1,19 +1,5 @@
 import Foundation
 
-struct PipeLayer: Identifiable, Hashable {
-    let id: UUID
-    var name: String
-    var thicknessM: Double
-    var densityKgM3: Double
-
-    init(id: UUID = UUID(), name: String, thicknessM: Double, densityKgM3: Double) {
-        self.id = id
-        self.name = name
-        self.thicknessM = thicknessM
-        self.densityKgM3 = densityKgM3
-    }
-}
-
 struct CalculatedPipeLayer: Identifiable, Hashable {
     let id: UUID
     let name: String
@@ -38,6 +24,19 @@ struct PipeWeightBuoyancyResult {
 }
 
 enum PipeWeightBuoyancyCalculator {
+    static func calculate(
+        construction: PipeConstruction,
+        gravity: Double = 9.80665
+    ) -> PipeWeightBuoyancyResult {
+        calculate(
+            internalDiameterM: construction.internalDiameterM,
+            layers: construction.layers,
+            internalFluidDensityKgM3: construction.internalFluid.densityKgM3,
+            externalFluidDensityKgM3: construction.externalFluid.densityKgM3,
+            gravity: gravity
+        )
+    }
+
     static func calculate(
         internalDiameterM: Double,
         layers: [PipeLayer],

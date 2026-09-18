@@ -73,3 +73,56 @@ final class PipeWeightBuoyancyCalculatorTests: XCTestCase {
         XCTAssertNotEqual(first.pipeMassKgPerM, second.pipeMassKgPerM)
     }
 }
+
+extension PipeWeightBuoyancyCalculatorTests {
+    func testSharedPipeConstructionMatchesLegacyInputs() {
+        let layers = [
+            PipeLayer(name: "Steel", thicknessM: 0.020, densityKgM3: 7850),
+            PipeLayer(name: "Coating", thicknessM: 0.003, densityKgM3: 1250)
+        ]
+
+        let legacy = PipeWeightBuoyancyCalculator.calculate(
+            internalDiameterM: 0.300,
+            layers: layers,
+            internalFluidDensityKgM3: 1000,
+            externalFluidDensityKgM3: 1025
+        )
+
+        let construction = PipeConstruction(
+            name: "Regression Pipe",
+            internalDiameterM: 0.300,
+            layers: layers,
+            internalFluid: FluidDefinition(name: "Water", densityKgM3: 1000),
+            externalFluid: FluidDefinition(name: "Seawater", densityKgM3: 1025)
+        )
+        let shared = PipeWeightBuoyancyCalculator.calculate(construction: construction)
+
+        XCTAssertEqual(shared.finalOuterDiameterM, legacy.finalOuterDiameterM, accuracy: 1e-12)
+        XCTAssertEqual(shared.pipeMassKgPerM, legacy.pipeMassKgPerM, accuracy: 1e-12)
+        XCTAssertEqual(shared.contentsMassKgPerM, legacy.contentsMassKgPerM, accuracy: 1e-12)
+        XCTAssertEqual(shared.displacedMassKgPerM, legacy.displacedMassKgPerM, accuracy: 1e-12)
+        XCTAssertEqual(shared.submergedWeightKNPerM, legacy.submergedWeightKNPerM, accuracy: 1e-12)
+    }
+
+    func testPipeConstructionRoundTripsThroughJSON() throws {
+        let steel = EngineeringMaterial(
+            name: "Carbon Steel",
+            category: "Metal",
+            densityKgM3: 7850,
+            thermalConductivityWMK: 45,
+            specificHeatCapacityJkgK: 475,
+            source: "Editable engineering default"
+        )
+        let original = PipeConstruction(
+            name: "12-inch Flowline",
+            internalDiameterM: 0.300,
+            layers: [PipeLayer(name: "Steel Pipe", thicknessM: 0.020, material: steel)],
+            internalFluid: FluidDefinition(name: "Process Fluid", densityKgM3: 900, thermalConductivityWMK: 0.12, specificHeatCapacityJkgK: 2200),
+            externalFluid: FluidDefinition(name: "Seawater", densityKgM3: 1025, thermalConductivityWMK: 0.60, specificHeatCapacityJkgK: 3990)
+        )
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(PipeConstruction.self, from: data)
+        XCTAssertEqual(decoded, original)
+    }
+}

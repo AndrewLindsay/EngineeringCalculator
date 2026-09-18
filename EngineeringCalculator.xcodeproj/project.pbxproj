@@ -17,6 +17,7 @@
 		A007 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F007 /* XCTest.framework */; };
 		A008 /* MathEquationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F008 /* MathEquationView.swift */; };
 		A009 /* CalculationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F009 /* CalculationDetailsView.swift */; };
+		A010 /* EngineeringDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F010 /* EngineeringDataModels.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,6 +41,7 @@
 		F007 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		F008 /* MathEquationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathEquationView.swift; sourceTree = "<group>"; };
 		F009 /* CalculationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDetailsView.swift; sourceTree = "<group>"; };
+		F010 /* EngineeringDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringDataModels.swift; sourceTree = "<group>"; };
 		GITIGNORE /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		PRODUCTAPP /* EngineeringCalculator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EngineeringCalculator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		PRODUCTTEST /* EngineeringCalculatorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EngineeringCalculatorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -83,6 +85,7 @@
 				F005 /* PipeWeightBuoyancyView.swift */,
 				F008 /* MathEquationView.swift */,
 				F009 /* CalculationDetailsView.swift */,
+				F010 /* EngineeringDataModels.swift */,
 			);
 			path = EngineeringCalculator;
 			sourceTree = "<group>";
@@ -223,6 +226,7 @@
 				A005 /* PipeWeightBuoyancyView.swift in Sources */,
 				A008 /* MathEquationView.swift in Sources */,
 				A009 /* CalculationDetailsView.swift in Sources */,
+				A010 /* EngineeringDataModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -265,7 +269,7 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad" = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.EngineeringCalculator;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.AndrewLindsay.EngineeringCalculator;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.AndrewLindsay.EngineeringCalculator;
@@ -297,7 +301,7 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad" = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.EngineeringCalculator;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.AndrewLindsay.EngineeringCalculator;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.AndrewLindsay.EngineeringCalculator;

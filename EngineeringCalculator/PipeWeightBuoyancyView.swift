@@ -62,13 +62,24 @@ struct PipeWeightBuoyancyView: View {
         return output
     }
 
-    private var result: PipeWeightBuoyancyResult {
-        PipeWeightBuoyancyCalculator.calculate(
+    private var pipeConstruction: PipeConstruction {
+        PipeConstruction(
+            name: "Current Pipe",
             internalDiameterM: internalDiameterM,
             layers: layers,
-            internalFluidDensityKgM3: internalDensity,
-            externalFluidDensityKgM3: externalDensity
+            internalFluid: FluidDefinition(
+                name: "Internal Fluid",
+                densityKgM3: max(0, internalDensity)
+            ),
+            externalFluid: FluidDefinition(
+                name: "External Fluid",
+                densityKgM3: max(0, externalDensity)
+            )
         )
+    }
+
+    private var result: PipeWeightBuoyancyResult {
+        PipeWeightBuoyancyCalculator.calculate(construction: pipeConstruction)
     }
 
     var body: some View {
