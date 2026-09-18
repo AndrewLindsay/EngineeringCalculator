@@ -46,14 +46,8 @@ struct PipeWeightBuoyancyView: View {
                 densityKgM3: max(0, pipeDensity)
             )
         ]
-
         output += extraLayers.map {
-            PipeLayer(
-                id: $0.id,
-                name: $0.material.name,
-                thicknessM: max(0, $0.thicknessMM) / 1000.0,
-                material: $0.material
-            )
+            PipeLayer(id: $0.id, name: $0.material.name, thicknessM: max(0, $0.thicknessMM) / 1000.0, material: $0.material)
         }
         return output
     }
@@ -85,38 +79,12 @@ struct PipeWeightBuoyancyView: View {
             }
 
             Section {
-                ForEach($extraLayers) { $layer in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(layer.material.name).font(.headline)
-                                Text("\(layer.material.densityKgM3 ?? 0, format: .number.precision(.fractionLength(0))) kg/m³")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button(role: .destructive) { deleteLayer(id: layer.id) } label: {
-                                Image(systemName: "trash")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Delete this layer")
-                        }
-
-                        numericField("Thickness (mm)", value: $layer.thicknessMM)
-
-                        HStack {
-                            Button { moveLayer(id: layer.id, offset: -1) } label: {
-                                Label("Move Up", systemImage: "arrow.up")
-                            }
-                            .disabled(isFirst(layer.id))
-                            Button { moveLayer(id: layer.id, offset: 1) } label: {
-                                Label("Move Down", systemImage: "arrow.down")
-                            }
-                            .disabled(isLast(layer.id))
-                        }
-                        .buttonStyle(.borderless)
+                // Use stable IDs rather than ForEach($array). Mutating a bound array from a
+                // row button can leave SwiftUI evaluating a stale index during the same update.
+                ForEach(extraLayers.map(\.id), id: \.self) { layerID in
+                    if let layerBinding = binding(for: layerID) {
+                        layerRow(layerBinding)
                     }
-                    .padding(.vertical, 5)
                 }
 
                 Button { showingAddLayer = true } label: {
@@ -166,6 +134,55 @@ struct PipeWeightBuoyancyView: View {
                 .environmentObject(materialStore)
             }
         }
+    }
+
+    @ViewBuilder
+    private func layerRow(_ layer: Binding<EditableLayer>) -> some View {
+        let layerID = layer.wrappedValue.id
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(layer.wrappedValue.material.name).font(.headline)
+                    Text("\(layer.wrappedValue.material.densityKgM3 ?? 0, format: .number.precision(.fractionLength(0))) kg/m³")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(role: .destructive) { deleteLayer(id: layerID) } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Delete this layer")
+            }
+
+            numericField("Thickness (mm)", value: layer.thicknessMM)
+
+            HStack {
+                Button { moveLayer(id: layerID, offset: -1) } label: {
+                    Label("Move Up", systemImage: "arrow.up")
+                }
+                .disabled(isFirst(layerID))
+                Button { moveLayer(id: layerID, offset: 1) } label: {
+                    Label("Move Down", systemImage: "arrow.down")
+                }
+                .disabled(isLast(layerID))
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 5)
+    }
+
+    private func binding(for id: UUID) -> Binding<EditableLayer>? {
+        guard extraLayers.contains(where: { $0.id == id }) else { return nil }
+        return Binding(
+            get: {
+                extraLayers.first(where: { $0.id == id })
+                    ?? EditableLayer(id: id, material: EngineeringMaterial(name: "Unavailable"), thicknessMM: 0)
+            },
+            set: { updated in
+                guard let index = extraLayers.firstIndex(where: { $0.id == id }) else { return }
+                extraLayers[index] = updated
+            }
+        )
     }
 
     private var layerTable: some View {
