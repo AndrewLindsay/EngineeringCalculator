@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6F25CC72305D4DAF00862599 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6F25CC71305D4DAF00862599 /* Assets.xcassets */; };
 		A001 /* EngineeringCalculatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* EngineeringCalculatorApp.swift */; };
 		A002 /* CalculationDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* CalculationDefinition.swift */; };
 		A003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* HomeView.swift */; };
@@ -27,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		6F25CC71305D4DAF00862599 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F001 /* EngineeringCalculatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringCalculatorApp.swift; sourceTree = "<group>"; };
 		F002 /* CalculationDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDefinition.swift; sourceTree = "<group>"; };
 		F003 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -90,6 +92,7 @@
 		MAIN = {
 			isa = PBXGroup;
 			children = (
+				6F25CC71305D4DAF00862599 /* Assets.xcassets */,
 				GAPP /* EngineeringCalculator */,
 				GTEST /* EngineeringCalculatorTests */,
 				PRODUCTS /* Products */,
@@ -189,6 +192,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F25CC72305D4DAF00862599 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +240,9 @@
 		APPDEBUG /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-iOS";
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = "AppIcon-iOS";
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = "AppIcon-macOS";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
@@ -266,6 +273,9 @@
 		APPRELEASE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-iOS";
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = "AppIcon-iOS";
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = "AppIcon-macOS";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
