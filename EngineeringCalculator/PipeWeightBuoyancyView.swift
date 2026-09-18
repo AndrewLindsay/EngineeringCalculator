@@ -176,50 +176,102 @@ struct PipeWeightBuoyancyView: View {
 
     private var layerTable: some View {
         ScrollView(.horizontal) {
-            Grid(alignment: .trailing, horizontalSpacing: 18, verticalSpacing: 7) {
+            Grid(
+                alignment: .trailing,
+                horizontalSpacing: 10,
+                verticalSpacing: 5
+            ) {
                 GridRow {
                     Text("#")
-                    Text("Layer").frame(minWidth: 130, alignment: .leading)
-                    Text("ID (mm)")
-                    Text("t (mm)")
-                    Text("OD (mm)")
-                    Text("Density (kg/m³)")
-                    Text("Area (m²)")
-                    Text("Mass (kg/m)")
+                    Text("Layer")
+                        .frame(minWidth: 90, alignment: .leading)
+                    Text("ID\n(mm)")
+                    Text("t\n(mm)")
+                    Text("OD\n(mm)")
+                    Text("Density\n(kg/m³)")
+                    Text("Area\n(m²)")
+                    Text("Mass\n(kg/m)")
                 }
-                .font(.caption.bold())
+                .font(.caption2.bold())
+                .multilineTextAlignment(.center)
 
-                Divider().gridCellColumns(8)
+                Divider()
+                    .gridCellColumns(8)
 
-                ForEach(Array(result.layers.enumerated()), id: \.element.id) { index, layer in
+                ForEach(
+                    Array(result.layers.enumerated()),
+                    id: \.element.id
+                ) { index, layer in
                     GridRow {
                         Text("\(index + 1)")
-                        Text(layer.name).frame(minWidth: 130, alignment: .leading)
-                        tableNumber(layer.innerDiameterM * 1000, digits: 3)
-                        tableNumber(layer.thicknessM * 1000, digits: 3)
-                        tableNumber(layer.outerDiameterM * 1000, digits: 3)
-                        tableNumber(layer.densityKgM3, digits: 1)
-                        tableNumber(layer.areaM2, digits: 6)
-                        tableNumber(layer.massKgPerM, digits: 3)
+
+                        Text(layer.name)
+                            .frame(minWidth: 90, alignment: .leading)
+
+                        tableNumber(
+                            layer.innerDiameterM * 1000,
+                            digits: 2
+                        )
+
+                        tableNumber(
+                            layer.thicknessM * 1000,
+                            digits: 2
+                        )
+
+                        tableNumber(
+                            layer.outerDiameterM * 1000,
+                            digits: 2
+                        )
+
+                        tableNumber(
+                            layer.densityKgM3,
+                            digits: 0
+                        )
+
+                        tableNumber(
+                            layer.areaM2,
+                            digits: 5
+                        )
+
+                        tableNumber(
+                            layer.massKgPerM,
+                            digits: 2
+                        )
                     }
+                    .font(.caption2)
                 }
 
-                Divider().gridCellColumns(8)
+                Divider()
+                    .gridCellColumns(8)
 
                 GridRow {
                     Text("")
-                    Text("TOTAL").fontWeight(.semibold).frame(minWidth: 130, alignment: .leading)
-                    Text("")
-                    Text("")
-                    tableNumber(result.finalOuterDiameterM * 1000, digits: 3)
-                    Text("")
-                    Text("")
-                    tableNumber(result.pipeMassKgPerM, digits: 3)
+
+                    Text("TOTAL")
                         .fontWeight(.semibold)
+                        .frame(minWidth: 90, alignment: .leading)
+
+                    Text("")
+                    Text("")
+
+                    tableNumber(
+                        result.finalOuterDiameterM * 1000,
+                        digits: 2
+                    )
+
+                    Text("")
+                    Text("")
+
+                    tableNumber(
+                        result.pipeMassKgPerM,
+                        digits: 2
+                    )
+                    .fontWeight(.semibold)
                 }
+                .font(.caption2)
             }
             .monospacedDigit()
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
         }
     }
 
