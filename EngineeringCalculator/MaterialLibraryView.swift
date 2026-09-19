@@ -222,6 +222,24 @@ struct MaterialEditorView: View {
     }
 
     @ViewBuilder private func propertyField(_ label: String, unit: String, text: Binding<String>) -> some View {
+#if os(iOS)
+        HStack(alignment: .center, spacing: 12) {
+            Text(label)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                TextField("Value", text: text)
+                    .multilineTextAlignment(.trailing)
+                    .frame(minWidth: 72, idealWidth: 92, maxWidth: 110)
+                if !unit.isEmpty { Text(unit).foregroundStyle(.secondary).fixedSize() }
+            }
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.vertical, 5)
+        .frame(minHeight: 48)
+#else
         LabeledContent {
             HStack(spacing: 6) {
                 TextField("Value", text: text).multilineTextAlignment(.trailing).frame(minWidth: 80)
@@ -230,6 +248,7 @@ struct MaterialEditorView: View {
         } label: {
             Text(label).fixedSize(horizontal: false, vertical: true)
         }
+#endif
     }
 
     private static func text(_ value: Double?) -> String { EngineeringNumberFormatter.editableString(value) }
