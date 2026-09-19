@@ -42,11 +42,68 @@ final class MaterialLibraryStore: ObservableObject {
 
     static let standardCategories = ["Steel", "Coating", "Insulation", "Concrete", "Polymer", "Elastomer", "Composite", "Other"]
 
+    private static let alleimaS32760Source = "Alleima SAF 32760+ Bar datasheet, updated 2025-05-09"
+    private static let alleimaS32760URL = "https://www.alleima.com/en/technical-center/material-datasheets/bar-and-hollow-bar/bar/saf-32760/"
+
     let builtInMaterials: [EngineeringMaterial] = [
         EngineeringMaterial(name: "Carbon Steel", category: "Steel", densityKgM3: 7850,
                             thermalConductivityWMK: 45, specificHeatCapacityJkgK: 475,
                             source: "Generic engineering reference values; verify for the selected grade and temperature.",
                             notes: "Thermal properties vary with composition and temperature.", isBuiltIn: true),
+
+        // First fully sourced temperature-dependent example. Values are taken from the
+        // Alleima SAF 32760+ bar datasheet. Thermal-expansion entries are mean values
+        // over ranges starting at 30 °C; the table temperature records the upper end
+        // of each published range (30-100, 30-200 and 30-300 °C).
+        EngineeringMaterial(name: "UNS S32760 (SAF 32760+)", category: "Steel", densityKgM3: 7800,
+                            grade: "SAF 32760+",
+                            thermalConductivityWMK: 15,
+                            specificHeatCapacityJkgK: 500,
+                            thermalExpansionMicrostrainPerK: 13.0,
+                            youngsModulusGPa: 200,
+                            electricalResistivityOhmM: 0.8e-6,
+                            source: "\(alleimaS32760Source) — \(alleimaS32760URL)",
+                            notes: "High-alloy duplex (super duplex) stainless steel. Temperature-dependent values are manufacturer datasheet values. Published thermal-expansion values are mean coefficients over 30 °C to the stated upper temperature. Alleima notes that prolonged exposure above 250 °C can change the microstructure and reduce impact strength; this is not stored as a generic maximum service temperature.",
+                            isBuiltIn: true,
+                            unsDesignation: "S32760",
+                            standardDesignation: "EN 1.4501; ASTM A479 / ASME SA-479; ASTM A276 / ASME SA-276",
+                            productForm: "Bar",
+                            materialCondition: "As covered by Alleima SAF 32760+ bar datasheet",
+                            thermalConductivitySeries: MaterialPropertySeries(
+                                referenceValue: 15, referenceTemperatureC: 20,
+                                temperatureTable: [MaterialPropertyPoint(temperatureC: 20, value: 15)],
+                                source: "\(alleimaS32760Source) — \(alleimaS32760URL)",
+                                basis: "Thermal conductivity, W/(m·K). Datasheet publishes 15 W/(m·°C) at 20 °C."),
+                            specificHeatCapacitySeries: MaterialPropertySeries(
+                                referenceValue: 500, referenceTemperatureC: 20,
+                                temperatureTable: [MaterialPropertyPoint(temperatureC: 20, value: 500)],
+                                source: "\(alleimaS32760Source) — \(alleimaS32760URL)",
+                                basis: "Specific heat capacity, J/(kg·K), published at 20 °C."),
+                            thermalExpansionSeries: MaterialPropertySeries(
+                                referenceValue: 13.0, referenceTemperatureC: 100,
+                                temperatureTable: [
+                                    MaterialPropertyPoint(temperatureC: 100, value: 13.0),
+                                    MaterialPropertyPoint(temperatureC: 200, value: 13.5),
+                                    MaterialPropertyPoint(temperatureC: 300, value: 14.0)
+                                ],
+                                source: "\(alleimaS32760Source) — \(alleimaS32760URL)",
+                                basis: "Mean coefficient of thermal expansion, ×10⁻⁶/K, for published ranges 30-100, 30-200 and 30-300 °C respectively; temperature field is the range upper bound."),
+                            youngsModulusSeries: MaterialPropertySeries(
+                                referenceValue: 200, referenceTemperatureC: 20,
+                                temperatureTable: [
+                                    MaterialPropertyPoint(temperatureC: 20, value: 200),
+                                    MaterialPropertyPoint(temperatureC: 100, value: 194),
+                                    MaterialPropertyPoint(temperatureC: 200, value: 186),
+                                    MaterialPropertyPoint(temperatureC: 300, value: 180)
+                                ],
+                                source: "\(alleimaS32760Source) — \(alleimaS32760URL)",
+                                basis: "Modulus of elasticity, GPa (datasheet table is MPa ×10³)."),
+                            electricalResistivitySeries: MaterialPropertySeries(
+                                referenceValue: 0.8e-6, referenceTemperatureC: 20,
+                                temperatureTable: [MaterialPropertyPoint(temperatureC: 20, value: 0.8e-6)],
+                                source: "\(alleimaS32760Source) — \(alleimaS32760URL)",
+                                basis: "Electrical resistivity, Ω·m; datasheet publishes 0.8 μΩ·m at 20 °C.")),
+
         EngineeringMaterial(name: "Concrete", category: "Concrete", densityKgM3: 2400,
                             thermalConductivityWMK: 1.7, specificHeatCapacityJkgK: 880,
                             source: "Generic engineering reference values; verify for the selected mix and condition.",
