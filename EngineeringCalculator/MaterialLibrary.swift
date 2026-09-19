@@ -94,8 +94,16 @@ final class MaterialLibraryStore: ObservableObject {
         userMaterials[i].category = canonicalCategory(category); save()
     }
     func duplicate(_ material: EngineeringMaterial) {
-        var copy = material; copy.id = UUID(); copy.name += " Copy"; copy.isBuiltIn = false
-        userMaterials.append(copy); save()
+        duplicate(material, to: material.category)
+    }
+    func duplicate(_ material: EngineeringMaterial, to category: String) {
+        var copy = material
+        copy.id = UUID()
+        copy.name += " Copy"
+        copy.isBuiltIn = false
+        copy.category = canonicalCategory(category)
+        userMaterials.append(copy)
+        save()
     }
     func delete(at offsets: IndexSet) { userMaterials.remove(atOffsets: offsets); save() }
     func delete(id: UUID) { userMaterials.removeAll { $0.id == id }; save() }
