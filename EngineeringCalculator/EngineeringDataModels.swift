@@ -34,7 +34,7 @@ enum EngineeringNumberFormatter {
 /// Versioned, portable engineering data types. These are deliberately Codable and
 /// independent of SwiftData/Core Data so they can later be embedded in .ecproj files.
 enum EngineeringDataSchema {
-    static let currentVersion = 3
+    static let currentVersion = 4
 }
 
 struct MaterialPropertyPoint: Identifiable, Hashable, Codable {
@@ -43,15 +43,66 @@ struct MaterialPropertyPoint: Identifiable, Hashable, Codable {
     var value: Double
 }
 
+/// Polynomial temperature correlation using T in degrees Celsius:
+/// y(T) = a + bT + cT² + dT³.
+struct MaterialPropertyEquation: Hashable, Codable {
+    var a: Double
+    var b: Double
+    var c: Double
+    var d: Double
+    var minimumTemperatureC: Double?
+    var maximumTemperatureC: Double?
+    var allowsExtrapolation: Bool
+
+    init(a: Double = 0, b: Double = 0, c: Double = 0, d: Double = 0,
+         minimumTemperatureC: Double? = nil, maximumTemperatureC: Double? = nil,
+         allowsExtrapolation: Bool = false) {
+        self.a = a; self.b = b; self.c = c; self.d = d
+        self.minimumTemperatureC = minimumTemperatureC; self.maximumTemperatureC = maximumTemperatureC
+        self.allowsExtrapolation = allowsExtrapolation
+    }
+
+    func value(atTemperatureC temperatureC: Double) -> Double? {
+        if !allowsExtrapolation {
+            if let minimumTemperatureC, temperatureC < minimumTemperatureC { return nil }
+            if let maximumTemperatureC, temperatureC > maximumTemperatureC { return nil }
+        }
+        return a + b * temperatureC + c * temperatureC * temperatureC + d * temperatureC * temperatureC * temperatureC
+    }
+}
+
 struct MaterialPropertySeries: Hashable, Codable {
     var referenceValue: Double?
     var referenceTemperatureC: Double?
     var temperatureTable: [MaterialPropertyPoint]
+    var equation: MaterialPropertyEquation?
     var source: String?
     var basis: String?
 
-    init(referenceValue: Double? = nil, referenceTemperatureC: Double? = nil, temperatureTable: [MaterialPropertyPoint] = [], source: String? = nil, basis: String? = nil) {
-        self.referenceValue = referenceValue; self.referenceTemperatureC = referenceTemperatureC; self.temperatureTable = temperatureTable; self.source = source; self.basis = basis
+    init(referenceValue: Double? = nil, referenceTemperatureC: Double? = nil,
+         temperatureTable: [MaterialPropertyPoint] = [], equation: MaterialPropertyEquation? = nil,
+         source: String? = nil, basis: String? = nil) {
+        self.referenceValue = referenceValue; self.referenceTemperatureC = referenceTemperatureC
+        self.temperatureTable = temperatureTable; self.equation = equation; self.source = source; self.basis = basis
+    }
+
+    /// Returns an equation value when an equation is supplied, otherwise linearly
+    /// interpolates the stored table. Table extrapolation is deliberately disabled.
+    func value(atTemperatureC temperatureC: Double) -> Double? {
+        if let equation { return equation.value(atTemperatureC: temperatureC) }
+        let points = temperatureTable.sorted { $0.temperatureC < $1.temperatureC }
+        guard !points.isEmpty else { return referenceValue }
+        if points.count == 1 { return points[0].temperatureC == temperatureC ? points[0].value : nil }
+        guard temperatureC >= points[0].temperatureC, temperatureC <= points[points.count - 1].temperatureC else { return nil }
+        if let exact = points.first(where: { $0.temperatureC == temperatureC }) { return exact.value }
+        for index in 0..<(points.count - 1) {
+            let lower = points[index], upper = points[index + 1]
+            if temperatureC > lower.temperatureC && temperatureC < upper.temperatureC {
+                let fraction = (temperatureC - lower.temperatureC) / (upper.temperatureC - lower.temperatureC)
+                return lower.value + fraction * (upper.value - lower.value)
+            }
+        }
+        return nil
     }
 }
 
