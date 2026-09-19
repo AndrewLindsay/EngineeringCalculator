@@ -30,7 +30,7 @@ struct MaterialLibraryView: View {
 #if os(macOS)
                     dropTarget(category)
                         .dropDestination(for: String.self) { items, _ in
-                            moveDroppedMaterials(items, to: category)
+                            handleDroppedMaterials(items, to: category)
                         }
 #else
                     if categoryMaterials.isEmpty {
@@ -86,18 +86,23 @@ struct MaterialLibraryView: View {
         HStack(spacing: 12) {
             Image(systemName: "tray.and.arrow.down.fill")
                 .font(.system(size: 25, weight: .semibold))
-            Text("Drop material into \(category)")
-                .font(.system(size: 13, weight: .medium))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Drop material into \(category)")
+                    .font(.system(size: 13, weight: .medium))
+                Text("User materials move; built-in materials are copied")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
             Spacer()
         }
         .foregroundStyle(.secondary)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
         .background(.quaternary.opacity(0.22), in: RoundedRectangle(cornerRadius: 8))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [5, 4])) }
         .contentShape(Rectangle())
-        .help("Drag a user-created material here to move it to \(category)")
+        .help("Drop a user material to move it. Drop a built-in material to create an editable copy in \(category).")
     }
 #endif
 
@@ -117,15 +122,20 @@ struct MaterialLibraryView: View {
     }
 
 #if os(macOS)
-    private func moveDroppedMaterials(_ items: [String], to category: String) -> Bool {
-        var moved = false
+    private func handleDroppedMaterials(_ items: [String], to category: String) -> Bool {
+        var handled = false
         for item in items {
             guard let id = UUID(uuidString: item),
-                  let material = store.userMaterials.first(where: { $0.id == id }) else { continue }
-            store.move(material, to: category)
-            moved = true
+                  let material = store.allMaterials.first(where: { $0.id == id }) else { continue }
+
+            if material.isBuiltIn {
+                store.duplicate(material, to: category)
+            } else {
+                store.move(material, to: category)
+            }
+            handled = true
         }
-        return moved
+        return handled
     }
 #endif
 
