@@ -144,10 +144,7 @@ private struct MaterialDetailView: View {
         190
 #endif
     }
-    private func valueText(_ value: Double, unit: String) -> String {
-        let formatted = EngineeringNumberFormatter.string(value)
-        return unit.isEmpty ? formatted : "\(formatted) \(unit)"
-    }
+    private func valueText(_ value: Double, unit: String) -> String { let formatted = EngineeringNumberFormatter.string(value); return unit.isEmpty ? formatted : "\(formatted) \(unit)" }
     private func propertyRow(_ key: String, _ value: String) -> some View { HStack(alignment: .top, spacing: 0) { Text(key).fontWeight(.semibold).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: propertyLabelWidth, alignment: .leading); Divider().padding(.horizontal, 12); Text(value).fontWeight(.medium).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }.fixedSize(horizontal: false, vertical: true).padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() } }
     private func propertyRow(_ key: String, _ value: Double?, unit: String) -> some View { HStack(alignment: .top, spacing: 0) { Text(key).fontWeight(.semibold).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: propertyLabelWidth, alignment: .leading); Divider().padding(.horizontal, 12); Group { if let value { Text(valueText(value, unit: unit)).monospacedDigit() } else { Text("Not specified").foregroundStyle(.secondary) } }.fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }.fixedSize(horizontal: false, vertical: true).padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() } }
 }
@@ -156,40 +153,17 @@ private struct MaterialPropertySeriesView: View {
     let propertyName: String
     let unit: String
     let series: MaterialPropertySeries
-
     private var sortedPoints: [MaterialPropertyPoint] { series.temperatureTable.sorted { $0.temperatureC < $1.temperatureC } }
-    private func valueText(_ value: Double) -> String {
-        let formatted = EngineeringNumberFormatter.string(value)
-        return unit.isEmpty ? formatted : "\(formatted) \(unit)"
-    }
-
+    private func valueText(_ value: Double) -> String { let formatted = EngineeringNumberFormatter.string(value); return unit.isEmpty ? formatted : "\(formatted) \(unit)" }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                if series.referenceValue != nil || series.referenceTemperatureC != nil {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Reference Value").font(.headline)
-                        HStack { if let value = series.referenceValue { Text(valueText(value)).font(.title3.bold()).monospacedDigit() }; if let temperature = series.referenceTemperatureC { Text("@ \(temperature.formatted()) °C").foregroundStyle(.secondary) } }
-                    }
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Temperature Data").font(.headline)
-                    Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 0) {
-                        GridRow { Text("Temperature").fontWeight(.semibold); Text("Value").fontWeight(.semibold) }.padding(.vertical, 8)
-                        Divider().gridCellColumns(2)
-                        ForEach(sortedPoints) { point in
-                            GridRow { Text("\(point.temperatureC.formatted()) °C").monospacedDigit(); Text(valueText(point.value)).monospacedDigit() }.padding(.vertical, 8)
-                            Divider().gridCellColumns(2)
-                        }
-                    }.padding(.horizontal, 14).background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 10)).overlay { RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1) }
-                }
-                if let basis = series.basis, !basis.isEmpty { infoSection("Basis", basis) }
-                if let source = series.source, !source.isEmpty { infoSection("Source", source) }
-                Text("Stored source data only. No interpolation or extrapolation is applied by this viewer.").font(.caption).foregroundStyle(.secondary)
+                if series.referenceValue != nil || series.referenceTemperatureC != nil { VStack(alignment: .leading, spacing: 8) { Text("Reference Value").font(.headline); HStack { if let value = series.referenceValue { Text(valueText(value)).font(.title3.bold()).monospacedDigit() }; if let temperature = series.referenceTemperatureC { Text("@ \(temperature.formatted()) °C").foregroundStyle(.secondary) } } } }
+                VStack(alignment: .leading, spacing: 8) { Text("Temperature Data").font(.headline); Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 0) { GridRow { Text("Temperature").fontWeight(.semibold); Text("Value").fontWeight(.semibold) }.padding(.vertical, 8); Divider().gridCellColumns(2); ForEach(sortedPoints) { point in GridRow { Text("\(point.temperatureC.formatted()) °C").monospacedDigit(); Text(valueText(point.value)).monospacedDigit() }.padding(.vertical, 8); Divider().gridCellColumns(2) } }.padding(.horizontal, 14).background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 10)).overlay { RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1) } }
+                if let basis = series.basis, !basis.isEmpty { infoSection("Basis", basis) }; if let source = series.source, !source.isEmpty { infoSection("Source", source) }; Text("Stored source data only. No interpolation or extrapolation is applied by this viewer.").font(.caption).foregroundStyle(.secondary)
             }.padding(24).frame(maxWidth: 720, alignment: .leading)
         }.navigationTitle(propertyName)
     }
-
     private func infoSection(_ title: String, _ text: String) -> some View { VStack(alignment: .leading, spacing: 8) { Text(title).font(.headline); Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(14).background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 10)) } }
 }
 
@@ -216,24 +190,46 @@ struct MaterialEditorView: View {
     var body: some View {
         Form {
             Section("Identity") {
-                TextField("Name", text: $name)
-                Picker("Existing category", selection: $category) { ForEach(store.categories, id: \.self) { Text($0).tag($0) }; if !store.categories.contains(where: { $0.caseInsensitiveCompare(category) == .orderedSame }) { Text(category).tag(category) } }
-                TextField("Category (type a new one if required)", text: $category)
-                TextField("Grade / specification", text: $grade)
+                LabeledContent("Name") { TextField("Name", text: $name).multilineTextAlignment(.trailing) }
+                LabeledContent("Existing category") { Picker("Existing category", selection: $category) { ForEach(store.categories, id: \.self) { Text($0).tag($0) }; if !store.categories.contains(where: { $0.caseInsensitiveCompare(category) == .orderedSame }) { Text(category).tag(category) } }.labelsHidden() }
+                LabeledContent("Category") { TextField("Category", text: $category).multilineTextAlignment(.trailing) }
+                LabeledContent("Grade / specification") { TextField("Grade / specification", text: $grade).multilineTextAlignment(.trailing) }
             }
-            Section("Core Properties") { TextField("Density (kg/m³)", text: $density); TextField("Thermal conductivity (W/(m·K))", text: $conductivity); TextField("Specific heat capacity (J/(kg·K))", text: $heatCapacity) }
+            Section("Core Properties") {
+                propertyField("Density", unit: "kg/m³", text: $density)
+                propertyField("Thermal conductivity", unit: "W/(m·K)", text: $conductivity)
+                propertyField("Specific heat capacity", unit: "J/(kg·K)", text: $heatCapacity)
+            }
             Section { Toggle("Advanced properties", isOn: $advanced) } footer: { Text("Enable Advanced to enter mechanical, extended thermal and electrical properties. All advanced values are optional. Scientific notation such as 8e-7 is accepted.") }
             if advanced {
-                Section("Mechanical") { TextField("Young's modulus (GPa)", text: $youngsModulus); TextField("Poisson's ratio", text: $poissonsRatio); TextField("Yield strength (MPa)", text: $yieldStrength); TextField("Ultimate tensile strength (MPa)", text: $ultimateTensileStrength); TextField("Shear modulus (GPa)", text: $shearModulus); TextField("Compressive strength (MPa)", text: $compressiveStrength) }
-                Section("Extended Thermal") { TextField("Thermal expansion (µm/(m·K))", text: $thermalExpansion); TextField("Minimum service temperature (°C)", text: $minimumServiceTemperature); TextField("Maximum service temperature (°C)", text: $maximumServiceTemperature) }
-                Section("Electrical") { TextField("Electrical resistivity (Ω·m; e.g. 8e-7)", text: $electricalResistivity) }
+                Section("Mechanical") {
+                    propertyField("Young's modulus", unit: "GPa", text: $youngsModulus); propertyField("Poisson's ratio", unit: "", text: $poissonsRatio); propertyField("Yield strength", unit: "MPa", text: $yieldStrength); propertyField("Ultimate tensile strength", unit: "MPa", text: $ultimateTensileStrength); propertyField("Shear modulus", unit: "GPa", text: $shearModulus); propertyField("Compressive strength", unit: "MPa", text: $compressiveStrength)
+                }
+                Section("Extended Thermal") { propertyField("Thermal expansion", unit: "µm/(m·K)", text: $thermalExpansion); propertyField("Minimum service temperature", unit: "°C", text: $minimumServiceTemperature); propertyField("Maximum service temperature", unit: "°C", text: $maximumServiceTemperature) }
+                Section("Electrical") { propertyField("Electrical resistivity", unit: "Ω·m", text: $electricalResistivity) }
             }
-            Section("Traceability") { TextField("Source / basis", text: $source, axis: .vertical); TextField("Notes", text: $notes, axis: .vertical) }
+            Section("Traceability") { LabeledContent("Source / basis") { TextField("Source / basis", text: $source, axis: .vertical).lineLimit(2...6) }; LabeledContent("Notes") { TextField("Notes", text: $notes, axis: .vertical).lineLimit(2...8) } }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.visible)
         .padding(.horizontal, 12)
         .navigationTitle(existing == nil ? "New Material" : "Edit Material")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save(); dismiss() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }
         .materialEditorSizing()
+#if os(macOS)
+        .background(MaterialEditorWindowConfigurator())
+#endif
+    }
+
+    @ViewBuilder private func propertyField(_ label: String, unit: String, text: Binding<String>) -> some View {
+        LabeledContent {
+            HStack(spacing: 6) {
+                TextField("Value", text: text).multilineTextAlignment(.trailing).frame(minWidth: 80)
+                if !unit.isEmpty { Text(unit).foregroundStyle(.secondary).fixedSize() }
+            }
+        } label: {
+            Text(label).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private static func text(_ value: Double?) -> String { EngineeringNumberFormatter.editableString(value) }
@@ -248,12 +244,28 @@ struct MaterialEditorView: View {
 }
 
 private extension View {
-    @ViewBuilder
-    func materialEditorSizing() -> some View {
+    @ViewBuilder func materialEditorSizing() -> some View {
 #if os(macOS)
-        self.frame(minWidth: 640, idealWidth: 760, minHeight: 560, idealHeight: 760)
+        self.frame(minWidth: 640, idealWidth: 760, maxWidth: .infinity, minHeight: 480, idealHeight: 760, maxHeight: .infinity)
 #else
         self
 #endif
     }
 }
+
+#if os(macOS)
+private struct MaterialEditorWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { configure(view.window) }
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) { DispatchQueue.main.async { configure(nsView.window) } }
+    private func configure(_ window: NSWindow?) {
+        guard let window else { return }
+        window.styleMask.insert(.resizable)
+        window.minSize = NSSize(width: 640, height: 480)
+        window.contentMinSize = NSSize(width: 640, height: 480)
+    }
+}
+#endif
