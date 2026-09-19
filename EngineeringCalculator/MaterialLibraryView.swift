@@ -144,7 +144,10 @@ private struct MaterialDetailView: View {
         190
 #endif
     }
-    private func valueText(_ value: Double, unit: String) -> String { unit.isEmpty ? value.formatted() : "\(value.formatted()) \(unit)" }
+    private func valueText(_ value: Double, unit: String) -> String {
+        let formatted = EngineeringNumberFormatter.string(value)
+        return unit.isEmpty ? formatted : "\(formatted) \(unit)"
+    }
     private func propertyRow(_ key: String, _ value: String) -> some View { HStack(alignment: .top, spacing: 0) { Text(key).fontWeight(.semibold).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: propertyLabelWidth, alignment: .leading); Divider().padding(.horizontal, 12); Text(value).fontWeight(.medium).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }.fixedSize(horizontal: false, vertical: true).padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() } }
     private func propertyRow(_ key: String, _ value: Double?, unit: String) -> some View { HStack(alignment: .top, spacing: 0) { Text(key).fontWeight(.semibold).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: propertyLabelWidth, alignment: .leading); Divider().padding(.horizontal, 12); Group { if let value { Text(valueText(value, unit: unit)).monospacedDigit() } else { Text("Not specified").foregroundStyle(.secondary) } }.fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }.fixedSize(horizontal: false, vertical: true).padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() } }
 }
@@ -155,7 +158,10 @@ private struct MaterialPropertySeriesView: View {
     let series: MaterialPropertySeries
 
     private var sortedPoints: [MaterialPropertyPoint] { series.temperatureTable.sorted { $0.temperatureC < $1.temperatureC } }
-    private func valueText(_ value: Double) -> String { unit.isEmpty ? value.formatted() : "\(value.formatted()) \(unit)" }
+    private func valueText(_ value: Double) -> String {
+        let formatted = EngineeringNumberFormatter.string(value)
+        return unit.isEmpty ? formatted : "\(formatted) \(unit)"
+    }
 
     var body: some View {
         ScrollView {
@@ -211,18 +217,18 @@ struct MaterialEditorView: View {
         Form {
             Section("Identity") { TextField("Name", text: $name); Picker("Existing category", selection: $category) { ForEach(store.categories, id: \.self) { Text($0).tag($0) }; if !store.categories.contains(where: { $0.caseInsensitiveCompare(category) == .orderedSame }) { Text(category).tag(category) } }; TextField("Category (type a new one if required)", text: $category); TextField("Grade / specification", text: $grade) }
             Section("Core Properties") { TextField("Density (kg/m³)", text: $density); TextField("Thermal conductivity (W/(m·K))", text: $conductivity); TextField("Specific heat capacity (J/(kg·K))", text: $heatCapacity) }
-            Section { Toggle("Advanced properties", isOn: $advanced) } footer: { Text("Enable Advanced to enter mechanical, extended thermal and electrical properties. All advanced values are optional.") }
+            Section { Toggle("Advanced properties", isOn: $advanced) } footer: { Text("Enable Advanced to enter mechanical, extended thermal and electrical properties. All advanced values are optional. Scientific notation such as 8e-7 is accepted.") }
             if advanced {
                 Section("Mechanical") { TextField("Young's modulus (GPa)", text: $youngsModulus); TextField("Poisson's ratio", text: $poissonsRatio); TextField("Yield strength (MPa)", text: $yieldStrength); TextField("Ultimate tensile strength (MPa)", text: $ultimateTensileStrength); TextField("Shear modulus (GPa)", text: $shearModulus); TextField("Compressive strength (MPa)", text: $compressiveStrength) }
                 Section("Extended Thermal") { TextField("Thermal expansion (µm/(m·K))", text: $thermalExpansion); TextField("Minimum service temperature (°C)", text: $minimumServiceTemperature); TextField("Maximum service temperature (°C)", text: $maximumServiceTemperature) }
-                Section("Electrical") { TextField("Electrical resistivity (Ω·m)", text: $electricalResistivity) }
+                Section("Electrical") { TextField("Electrical resistivity (Ω·m; e.g. 8e-7)", text: $electricalResistivity) }
             }
             Section("Traceability") { TextField("Source / basis", text: $source, axis: .vertical); TextField("Notes", text: $notes, axis: .vertical) }
         }.navigationTitle(existing == nil ? "New Material" : "Edit Material").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save(); dismiss() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }
     }
 
-    private static func text(_ value: Double?) -> String { value.map { String($0) } ?? "" }
-    private func number(_ text: String) -> Double? { Double(text.replacingOccurrences(of: ",", with: ".")) }
+    private static func text(_ value: Double?) -> String { EngineeringNumberFormatter.editableString(value) }
+    private func number(_ text: String) -> Double? { EngineeringNumberFormatter.parse(text) }
     private func save() {
         let material = EngineeringMaterial(id: existing?.id ?? UUID(), name: name.trimmingCharacters(in: .whitespacesAndNewlines), category: store.canonicalCategory(category), densityKgM3: number(density), grade: grade.isEmpty ? nil : grade,
             thermalConductivityWMK: number(conductivity), specificHeatCapacityJkgK: number(heatCapacity), thermalExpansionMicrostrainPerK: number(thermalExpansion), minimumServiceTemperatureC: number(minimumServiceTemperature), maximumServiceTemperatureC: number(maximumServiceTemperature), youngsModulusGPa: number(youngsModulus), poissonsRatio: number(poissonsRatio), yieldStrengthMPa: number(yieldStrength), ultimateTensileStrengthMPa: number(ultimateTensileStrength), shearModulusGPa: number(shearModulus), compressiveStrengthMPa: number(compressiveStrength), electricalResistivityOhmM: number(electricalResistivity), source: source.isEmpty ? nil : source, notes: notes.isEmpty ? nil : notes,
