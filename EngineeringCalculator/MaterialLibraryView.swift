@@ -10,33 +10,32 @@ struct MaterialLibraryView: View {
         List {
             ForEach(store.categories, id: \.self) { category in
                 Section {
-                    let materials = materials(in: category)
-                    if materials.isEmpty {
-                        dropTarget(category, compact: true)
-                    } else {
-                        ForEach(materials) { material in
-                            HStack(spacing: 8) {
-                                NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
-                                if !material.isBuiltIn {
-                                    Button(role: .destructive) { materialPendingDeletion = material } label: {
-                                        Image(systemName: "trash")
-                                            .frame(width: 24, height: 24)
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .help("Delete \(material.name)")
+                    let categoryMaterials = materials(in: category)
+                    ForEach(categoryMaterials) { material in
+                        HStack(spacing: 8) {
+                            NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
+                            if !material.isBuiltIn {
+                                Button(role: .destructive) { materialPendingDeletion = material } label: {
+                                    Image(systemName: "trash").frame(width: 24, height: 24)
                                 }
+                                .buttonStyle(.borderless)
+                                .help("Delete \(material.name)")
                             }
-                            .contextMenu { materialMenu(material, currentCategory: category) }
-#if os(macOS)
-                            .draggable(material.id.uuidString)
-#endif
                         }
+                        .contextMenu { materialMenu(material, currentCategory: category) }
+#if os(macOS)
+                        .draggable(material.id.uuidString)
+#endif
                     }
 #if os(macOS)
-                    dropTarget(category, compact: false)
+                    dropTarget(category)
                         .dropDestination(for: String.self) { items, _ in
                             moveDroppedMaterials(items, to: category)
                         }
+#else
+                    if categoryMaterials.isEmpty {
+                        Text("No materials").font(.caption).foregroundStyle(.tertiary)
+                    }
 #endif
                 } header: {
                     categoryHeader(category)
@@ -82,32 +81,25 @@ struct MaterialLibraryView: View {
         .contentShape(Rectangle())
     }
 
-    @ViewBuilder
-    private func dropTarget(_ category: String, compact: Bool) -> some View {
 #if os(macOS)
-        HStack(spacing: 10) {
+    private func dropTarget(_ category: String) -> some View {
+        HStack(spacing: 12) {
             Image(systemName: "tray.and.arrow.down.fill")
-                .font(.system(size: compact ? 20 : 24, weight: .semibold))
+                .font(.system(size: 25, weight: .semibold))
             Text("Drop material into \(category)")
-                .font(.system(size: compact ? 12 : 13, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
             Spacer()
         }
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, compact ? 8 : 11)
-        .frame(maxWidth: .infinity, minHeight: compact ? 38 : 46, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
         .background(.quaternary.opacity(0.22), in: RoundedRectangle(cornerRadius: 8))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [5, 4])) }
         .contentShape(Rectangle())
         .help("Drag a user-created material here to move it to \(category)")
-#else
-        if compact {
-            Text("No materials")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-#endif
     }
+#endif
 
     @ViewBuilder
     private func materialMenu(_ material: EngineeringMaterial, currentCategory: String) -> some View {
@@ -202,9 +194,7 @@ private struct MaterialDetailView: View {
                         dismiss()
                     }
                     Button("Cancel", role: .cancel) { }
-                } message: {
-                    Text("This removes the material from My Materials.")
-                }
+                } message: { Text("This removes the material from My Materials.") }
             } else { ContentUnavailableView("Material Not Found", systemImage: "questionmark.folder") }
         }
     }
