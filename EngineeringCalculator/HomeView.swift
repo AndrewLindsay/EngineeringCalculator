@@ -30,9 +30,34 @@ struct MaterialPropertyInspectorView:View{
 .navigationBarTitleDisplayMode(.inline)
 #endif
 .onAppear{if selectedMaterialID==nil{selectedMaterialID=materials.first?.id}}}
-    @ViewBuilder private func selectionPicker<Content:View>(_ title:String,value:String,@ViewBuilder content:()->Content)->some View{
+    @ViewBuilder
+    private func selectionPicker<Content: View>(
+        _ title: String,
+        value: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
 #if os(iOS)
-        HStack(spacing:12){Text(title).layoutPriority(1);Spacer(minLength:8);Menu{content()}{HStack(spacing:5){Text(value).lineLimit(1).truncationMode(.middle);Image(systemName:"chevron.up.chevron.down").font(.caption2)}}.foregroundStyle(.secondary).frame(maxWidth:230,alignment:.trailing)}
+        HStack(spacing: 12) {
+            Text(title)
+                .layoutPriority(1)
+
+            Spacer(minLength: 8)
+
+            Menu {
+                content()
+            } label: {
+                HStack(spacing: 5) {
+                    Text(value)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: 230, alignment: .trailing)
+        }
 #else
         content()
 #endif
