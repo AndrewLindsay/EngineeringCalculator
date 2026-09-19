@@ -133,7 +133,7 @@ private struct PropertyDraft {
     var allowsExtrapolation = false
 
     init(property: EngineeringPropertyValue?, fallback: Double?) {
-        guard let property else { constant = fallback.map(String.init) ?? ""; return }
+        guard let property else { constant = fallback.map { String($0) } ?? ""; return }
         switch property {
         case .constant(let value):
             mode = .constant; constant = String(value)
@@ -145,8 +145,8 @@ private struct PropertyDraft {
         case .temperatureEquation(let equation):
             mode = .equation
             a = String(equation.a); b = String(equation.b); c = String(equation.c); d = String(equation.d)
-            minimumTemperature = equation.minimumTemperatureC.map(String.init) ?? ""
-            maximumTemperature = equation.maximumTemperatureC.map(String.init) ?? ""
+            minimumTemperature = equation.minimumTemperatureC.map { String($0) } ?? ""
+            maximumTemperature = equation.maximumTemperatureC.map { String($0) } ?? ""
             allowsExtrapolation = equation.allowsExtrapolation
         }
     }
