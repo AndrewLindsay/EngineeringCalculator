@@ -118,48 +118,18 @@ struct MaterialPropertyInspectorView: View {
 
     @ViewBuilder private func propertyGraphSection(material: EngineeringMaterial, property: MaterialPropertyKind) -> some View {
         if let series = seriesFor(property, material), !series.temperatureTable.isEmpty || series.equation != nil {
-            let curve = graphPoints(series: series)
             Section("Property Graph") {
-                Chart {
-                    ForEach(curve) { point in
-                        LineMark(x: .value("Temperature", point.temperatureC), y: .value(property.name, point.value))
-                            .interpolationMethod(.linear)
-                    }
-                    ForEach(series.temperatureTable.sorted { $0.temperatureC < $1.temperatureC }) { point in
-                        PointMark(x: .value("Temperature", point.temperatureC), y: .value(property.name, point.value))
-                            .symbolSize(45)
-                    }
-                    if let t = temperature, let r = resolution, let value = r.value {
-                        RuleMark(x: .value("Selected temperature", t)).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4])).foregroundStyle(.secondary)
-                        PointMark(x: .value("Selected temperature", t), y: .value("Predicted", value)).symbolSize(100)
-                            .annotation(position: .top, spacing: 6) { Text("\(value.formatted()) \(property.unit)").font(.caption).monospacedDigit() }
-                    }
-                }
-                .chartXAxisLabel("Temperature (°C)")
-                .chartYAxisLabel(property.unit.isEmpty ? property.name : "\(property.name) (\(property.unit))")
-                .frame(minHeight: 240, idealHeight: 300)
+                PropertySeriesChart(
+                    series: series,
+                    property: property,
+                    selectedTemperature: temperature,
+                    selectedValue: resolution?.value
+                )
                 Text(series.equation == nil ? "Line shows linear interpolation between tabulated values. The larger point is the evaluated result." : "Line shows the stored equation over its stated range. The larger point is the evaluated result.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private func graphPoints(series: MaterialPropertySeries) -> [InspectorGraphPoint] {
-        if !series.temperatureTable.isEmpty {
-            return series.temperatureTable.sorted { $0.temperatureC < $1.temperatureC }.map { InspectorGraphPoint(temperatureC: $0.temperatureC, value: $0.value) }
-        }
-        guard let equation = series.equation else { return [] }
-        let minimum = equation.minimumTemperatureC ?? 0
-        let maximum = equation.maximumTemperatureC ?? max(minimum + 100, 300)
-        guard maximum > minimum else { return [InspectorGraphPoint(temperatureC: minimum, value: equationValue(equation, at: minimum))] }
-        return (0...80).map { index in
-            let t = minimum + (maximum - minimum) * Double(index) / 80.0
-            return InspectorGraphPoint(temperatureC: t, value: equationValue(equation, at: t))
-        }
-    }
-
-    private func equationValue(_ equation: TemperatureEquation, at temperature: Double) -> Double {
-        equation.a + equation.b * temperature + equation.c * temperature * temperature + equation.d * temperature * temperature * temperature
     }
 
     @ViewBuilder private func statusView(_ r: MaterialPropertyResolution) -> some View {
@@ -184,6 +154,78 @@ struct MaterialPropertyInspectorView: View {
     private func methodText(_ r: MaterialPropertyResolution) -> String { switch r.method { case .constant: return "Constant"; case .tableExact: return "Tabulated value"; case .linearInterpolation: return "Linear interpolation"; case .equation: return "Equation"; case nil: return "—" } }
     private func rangeText(_ min: Double?, _ max: Double?) -> String { "\(min.map { $0.formatted() } ?? "−∞")–\(max.map { $0.formatted() } ?? "+∞") °C" }
     private func seriesFor(_ p: MaterialPropertyKind, _ m: EngineeringMaterial) -> MaterialPropertySeries? { switch p { case .thermalConductivity: return m.thermalConductivitySeries; case .specificHeatCapacity: return m.specificHeatCapacitySeries; case .thermalExpansion: return m.thermalExpansionSeries; case .youngsModulus: return m.youngsModulusSeries; case .poissonsRatio: return m.poissonsRatioSeries; case .yieldStrength: return m.yieldStrengthSeries; case .ultimateTensileStrength: return m.ultimateTensileStrengthSeries; case .shearModulus: return m.shearModulusSeries; case .electricalResistivity: return m.electricalResistivitySeries; default: return nil } }
+}
+
+private struct PropertySeriesChart: View {
+    let series: MaterialPropertySeries
+    let property: MaterialPropertyKind
+    let selectedTemperature: Double?
+    let selectedValue: Double?
+
+    private var curve: [InspectorGraphPoint] {
+        if !series.temperatureTable.isEmpty {
+            return series.temperatureTable
+                .sorted { $0.temperatureC < $1.temperatureC }
+                .map { InspectorGraphPoint(temperatureC: $0.temperatureC, value: $0.value) }
+        }
+        guard let equation = series.equation else { return [] }
+        let minimum = equation.minimumTemperatureC ?? 0
+        let maximum = equation.maximumTemperatureC ?? max(minimum + 100, 300)
+        guard maximum > minimum else {
+            return [InspectorGraphPoint(temperatureC: minimum, value: equationValue(equation, at: minimum))]
+        }
+        return (0...80).map { index in
+            let t = minimum + (maximum - minimum) * Double(index) / 80.0
+            return InspectorGraphPoint(temperatureC: t, value: equationValue(equation, at: t))
+        }
+    }
+
+    var body: some View {
+        Chart {
+            ForEach(curve) { point in
+                LineMark(
+                    x: .value("Temperature", point.temperatureC),
+                    y: .value("Property value", point.value)
+                )
+                .interpolationMethod(.linear)
+            }
+
+            ForEach(series.temperatureTable.sorted { $0.temperatureC < $1.temperatureC }) { point in
+                PointMark(
+                    x: .value("Temperature", point.temperatureC),
+                    y: .value("Tabulated value", point.value)
+                )
+                .symbolSize(45)
+            }
+
+            if let t = selectedTemperature, let value = selectedValue {
+                RuleMark(x: .value("Selected temperature", t))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .foregroundStyle(.secondary)
+
+                PointMark(
+                    x: .value("Selected temperature", t),
+                    y: .value("Evaluated value", value)
+                )
+                .symbolSize(100)
+                .annotation(position: .top, spacing: 6) {
+                    Text(property.unit.isEmpty ? value.formatted() : "\(value.formatted()) \(property.unit)")
+                        .font(.caption)
+                        .monospacedDigit()
+                }
+            }
+        }
+        .chartXAxisLabel("Temperature (°C)")
+        .chartYAxisLabel(property.unit.isEmpty ? property.name : "\(property.name) (\(property.unit))")
+        .frame(minHeight: 240, idealHeight: 300)
+    }
+
+    private func equationValue(_ equation: MaterialPropertyEquation, at temperature: Double) -> Double {
+        equation.a
+            + equation.b * temperature
+            + equation.c * temperature * temperature
+            + equation.d * temperature * temperature * temperature
+    }
 }
 
 private struct InspectorGraphPoint: Identifiable {
