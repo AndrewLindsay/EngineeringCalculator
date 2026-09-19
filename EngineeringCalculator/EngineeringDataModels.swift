@@ -3,7 +3,7 @@ import Foundation
 /// Versioned, portable engineering data types. These are deliberately Codable and
 /// independent of SwiftData/Core Data so they can later be embedded in .ecproj files.
 enum EngineeringDataSchema {
-    static let currentVersion = 1
+    static let currentVersion = 2
 }
 
 struct EngineeringMaterial: Identifiable, Hashable, Codable {
@@ -15,6 +15,9 @@ struct EngineeringMaterial: Identifiable, Hashable, Codable {
     var isBuiltIn: Bool
     var thermalConductivityWMK: Double?
     var specificHeatCapacityJkgK: Double?
+    var densityProperty: EngineeringPropertyValue?
+    var thermalConductivityProperty: EngineeringPropertyValue?
+    var specificHeatCapacityProperty: EngineeringPropertyValue?
     var source: String?
     var notes: String?
 
@@ -26,6 +29,9 @@ struct EngineeringMaterial: Identifiable, Hashable, Codable {
         grade: String? = nil,
         thermalConductivityWMK: Double? = nil,
         specificHeatCapacityJkgK: Double? = nil,
+        densityProperty: EngineeringPropertyValue? = nil,
+        thermalConductivityProperty: EngineeringPropertyValue? = nil,
+        specificHeatCapacityProperty: EngineeringPropertyValue? = nil,
         source: String? = nil,
         notes: String? = nil,
         isBuiltIn: Bool = false
@@ -38,8 +44,23 @@ struct EngineeringMaterial: Identifiable, Hashable, Codable {
         self.isBuiltIn = isBuiltIn
         self.thermalConductivityWMK = thermalConductivityWMK
         self.specificHeatCapacityJkgK = specificHeatCapacityJkgK
+        self.densityProperty = densityProperty ?? densityKgM3.map { .constant($0) }
+        self.thermalConductivityProperty = thermalConductivityProperty ?? thermalConductivityWMK.map { .constant($0) }
+        self.specificHeatCapacityProperty = specificHeatCapacityProperty ?? specificHeatCapacityJkgK.map { .constant($0) }
         self.source = source
         self.notes = notes
+    }
+
+    func density(atTemperatureC temperatureC: Double) -> Double? {
+        densityProperty?.value(atTemperatureC: temperatureC) ?? densityKgM3
+    }
+
+    func thermalConductivity(atTemperatureC temperatureC: Double) -> Double? {
+        thermalConductivityProperty?.value(atTemperatureC: temperatureC) ?? thermalConductivityWMK
+    }
+
+    func specificHeatCapacity(atTemperatureC temperatureC: Double) -> Double? {
+        specificHeatCapacityProperty?.value(atTemperatureC: temperatureC) ?? specificHeatCapacityJkgK
     }
 }
 
@@ -76,10 +97,7 @@ struct PipeLayer: Identifiable, Hashable, Codable {
         self.id = id
         self.name = name
         self.thicknessM = thicknessM
-        self.material = EngineeringMaterial(
-            name: name,
-            densityKgM3: densityKgM3
-        )
+        self.material = EngineeringMaterial(name: name, densityKgM3: densityKgM3)
     }
 
     init(id: UUID = UUID(), name: String, thicknessM: Double, material: EngineeringMaterial) {
