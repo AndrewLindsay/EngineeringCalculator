@@ -1,14 +1,16 @@
 import Foundation
 import SwiftUI
 
-/// A scalar engineering property that can later be extended to tabulated/correlated data
-/// without changing the material-library file format.
+/// A material property may be a fixed value, a temperature/value table, or a polynomial
+/// correlation. Temperature is the first supported independent variable; the model is
+/// intentionally isolated so other variables can be added later without changing materials.
 enum EngineeringPropertyValue: Hashable, Codable {
     case constant(Double)
     case temperatureTable([TemperaturePropertyPoint])
+    case temperatureEquation(TemperatureEquation)
 
-    private enum CodingKeys: String, CodingKey { case kind, value, points }
-    private enum Kind: String, Codable { case constant, temperatureTable }
+    private enum CodingKeys: String, CodingKey { case kind, value, points, equation }
+    private enum Kind: String, Codable { case constant, temperatureTable, temperatureEquation }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -17,6 +19,8 @@ enum EngineeringPropertyValue: Hashable, Codable {
             self = .constant(try c.decode(Double.self, forKey: .value))
         case .temperatureTable:
             self = .temperatureTable(try c.decode([TemperaturePropertyPoint].self, forKey: .points))
+        case .temperatureEquation:
+            self = .temperatureEquation(try c.decode(TemperatureEquation.self, forKey: .equation))
         }
     }
 
@@ -29,12 +33,41 @@ enum EngineeringPropertyValue: Hashable, Codable {
         case .temperatureTable(let points):
             try c.encode(Kind.temperatureTable, forKey: .kind)
             try c.encode(points, forKey: .points)
+        case .temperatureEquation(let equation):
+            try c.encode(Kind.temperatureEquation, forKey: .kind)
+            try c.encode(equation, forKey: .equation)
         }
     }
 
     var constantValue: Double? {
         if case .constant(let value) = self { return value }
         return nil
+    }
+
+    /// Returns nil outside the defined range unless extrapolation has explicitly been enabled.
+    func value(atTemperatureC temperatureC: Double) -> Double? {
+        switch self {
+        case .constant(let value):
+            return value
+
+        case .temperatureTable(let unsortedPoints):
+            let points = unsortedPoints.sorted { $0.temperatureC < $1.temperatureC }
+            guard let first = points.first, let last = points.last else { return nil }
+            if points.count == 1 { return temperatureC == first.temperatureC ? first.value : nil }
+            guard temperatureC >= first.temperatureC, temperatureC <= last.temperatureC else { return nil }
+            if temperatureC == first.temperatureC { return first.value }
+            if temperatureC == last.temperatureC { return last.value }
+            guard let upperIndex = points.firstIndex(where: { $0.temperatureC >= temperatureC }), upperIndex > 0 else { return nil }
+            let lower = points[upperIndex - 1]
+            let upper = points[upperIndex]
+            let span = upper.temperatureC - lower.temperatureC
+            guard span != 0 else { return lower.value }
+            let fraction = (temperatureC - lower.temperatureC) / span
+            return lower.value + fraction * (upper.value - lower.value)
+
+        case .temperatureEquation(let equation):
+            return equation.value(atTemperatureC: temperatureC)
+        }
     }
 }
 
@@ -44,9 +77,28 @@ struct TemperaturePropertyPoint: Hashable, Codable, Identifiable {
     var value: Double
 }
 
+/// Polynomial y(T) = a + bT + cT² + dT³, with T in degrees Celsius.
+struct TemperatureEquation: Hashable, Codable {
+    var a: Double
+    var b: Double
+    var c: Double
+    var d: Double
+    var minimumTemperatureC: Double?
+    var maximumTemperatureC: Double?
+    var allowsExtrapolation: Bool = false
+
+    func value(atTemperatureC temperatureC: Double) -> Double? {
+        if !allowsExtrapolation {
+            if let minimumTemperatureC, temperatureC < minimumTemperatureC { return nil }
+            if let maximumTemperatureC, temperatureC > maximumTemperatureC { return nil }
+        }
+        return a + b * temperatureC + c * temperatureC * temperatureC + d * temperatureC * temperatureC * temperatureC
+    }
+}
+
 struct MaterialLibraryDocument: Hashable, Codable {
     var format: String = "EngineeringCalculatorMaterialLibrary"
-    var formatVersion: Int = 1
+    var formatVersion: Int = 2
     var materials: [EngineeringMaterial]
 }
 
