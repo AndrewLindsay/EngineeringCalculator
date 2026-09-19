@@ -1,35 +1,53 @@
 import SwiftUI
 
+private enum MaterialLibraryFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case builtIn = "Built-in"
+    case userDefined = "My Materials"
+    var id: Self { self }
+}
+
 struct MaterialLibraryView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     @Environment(\.interfaceDensity) private var density
     @State private var showingNew = false
     @State private var materialPendingDeletion: EngineeringMaterial?
+    @State private var libraryFilter: MaterialLibraryFilter = .all
 
     var body: some View {
-        List {
-            ForEach(store.categories, id: \.self) { category in
-                Section {
-                    let categoryMaterials = materials(in: category)
-                    ForEach(categoryMaterials) { material in
-                        HStack(spacing: 8) {
-                            NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
-                            if !material.isBuiltIn {
-                                Button(role: .destructive) { materialPendingDeletion = material } label: { Image(systemName: "trash").frame(width: 24, height: 24) }
-                                    .buttonStyle(.borderless).help("Delete \(material.name)")
+        VStack(spacing: 0) {
+            Picker("Materials", selection: $libraryFilter) {
+                ForEach(MaterialLibraryFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            List {
+                ForEach(visibleCategories, id: \.self) { category in
+                    Section {
+                        let categoryMaterials = materials(in: category)
+                        ForEach(categoryMaterials) { material in
+                            HStack(spacing: 8) {
+                                NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
+                                if !material.isBuiltIn {
+                                    Button(role: .destructive) { materialPendingDeletion = material } label: { Image(systemName: "trash").frame(width: 24, height: 24) }
+                                        .buttonStyle(.borderless).help("Delete \(material.name)")
+                                }
                             }
+                            .contextMenu { materialMenu(material, currentCategory: category) }
+#if os(macOS)
+                            .draggable(material.id.uuidString)
+#endif
                         }
-                        .contextMenu { materialMenu(material, currentCategory: category) }
 #if os(macOS)
-                        .draggable(material.id.uuidString)
+                        dropTarget(category).dropDestination(for: String.self) { items, _ in handleDroppedMaterials(items, to: category) }
 #endif
-                    }
-#if os(macOS)
-                    dropTarget(category).dropDestination(for: String.self) { items, _ in handleDroppedMaterials(items, to: category) }
-#else
-                    if categoryMaterials.isEmpty { Text("No materials").font(.caption).foregroundStyle(.tertiary) }
-#endif
-                } header: { categoryHeader(category) }
+                    } header: { categoryHeader(category) }
+                }
             }
         }
         .navigationTitle("Material Library")
@@ -42,7 +60,25 @@ struct MaterialLibraryView: View {
         .alert("Material Library", isPresented: Binding(get: { store.lastError != nil }, set: { if !$0 { store.lastError = nil } })) { Button("OK") { store.lastError = nil } } message: { Text(store.lastError ?? "") }
     }
 
-    private func materials(in category: String) -> [EngineeringMaterial] { store.allMaterials.filter { $0.category.caseInsensitiveCompare(category) == .orderedSame }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
+    private var filteredMaterials: [EngineeringMaterial] {
+        switch libraryFilter {
+        case .all: store.allMaterials
+        case .builtIn: store.builtInMaterials
+        case .userDefined: store.userMaterials
+        }
+    }
+
+    private var visibleCategories: [String] {
+        store.categories.filter { category in
+            filteredMaterials.contains { $0.category.caseInsensitiveCompare(category) == .orderedSame }
+        }
+    }
+
+    private func materials(in category: String) -> [EngineeringMaterial] {
+        filteredMaterials.filter { $0.category.caseInsensitiveCompare(category) == .orderedSame }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     private func categoryHeader(_ category: String) -> some View { HStack { Text(category); Spacer(); Text("\(materials(in: category).count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }.contentShape(Rectangle()) }
 #if os(macOS)
     private func dropTarget(_ category: String) -> some View {
@@ -135,46 +171,19 @@ private struct MaterialDetailView: View {
 
     private func propertyRow(_ key: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 0) {
-            Text(key)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(width: propertyLabelWidth, alignment: .leading)
+            Text(key).fontWeight(.semibold).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: propertyLabelWidth, alignment: .leading)
             Divider().padding(.horizontal, 12)
-            Text(value)
-                .fontWeight(.medium)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .overlay(alignment: .bottom) { Divider() }
+            Text(value).fontWeight(.medium).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+        }.fixedSize(horizontal: false, vertical: true).padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() }
     }
 
     private func propertyRow(_ key: String, _ value: Double?, unit: String) -> some View {
         HStack(alignment: .top, spacing: 0) {
-            Text(key)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(width: propertyLabelWidth, alignment: .leading)
+            Text(key).fontWeight(.semibold).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: propertyLabelWidth, alignment: .leading)
             Divider().padding(.horizontal, 12)
-            Group {
-                if let value {
-                    Text(unit.isEmpty ? value.formatted() : "\(value.formatted()) \(unit)").monospacedDigit()
-                } else {
-                    Text("Not specified").foregroundStyle(.secondary)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .overlay(alignment: .bottom) { Divider() }
+            Group { if let value { Text(unit.isEmpty ? value.formatted() : "\(value.formatted()) \(unit)").monospacedDigit() } else { Text("Not specified").foregroundStyle(.secondary) } }
+                .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+        }.fixedSize(horizontal: false, vertical: true).padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() }
     }
 }
 
