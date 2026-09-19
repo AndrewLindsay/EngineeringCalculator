@@ -8,26 +8,28 @@ struct MaterialLibraryView: View {
     var body: some View {
         List {
             ForEach(store.categories, id: \.self) { category in
-                let materials = store.allMaterials.filter { $0.category.caseInsensitiveCompare(category) == .orderedSame }
-                if !materials.isEmpty {
-                    Section(category) {
+                Section {
+                    let materials = materials(in: category)
+                    if materials.isEmpty {
+                        Text("Drop a user material here")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    } else {
                         ForEach(materials) { material in
                             NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
-                                .contextMenu {
-                                    if material.isBuiltIn {
-                                        Button("Duplicate to My Materials") { store.duplicate(material) }
-                                    } else {
-                                        Menu("Move to Category") {
-                                            ForEach(store.categories.filter { $0.caseInsensitiveCompare(category) != .orderedSame }, id: \.self) { target in
-                                                Button(target) { store.move(material, to: target) }
-                                            }
-                                        }
-                                        Divider()
-                                        Button("Delete", role: .destructive) { store.delete(id: material.id) }
-                                    }
-                                }
+                                .contextMenu { materialMenu(material, currentCategory: category) }
+#if os(macOS)
+                                .draggable(material.id.uuidString)
+#endif
                         }
                     }
+                } header: {
+                    categoryHeader(category)
+#if os(macOS)
+                        .dropDestination(for: String.self) { items, _ in
+                            moveDroppedMaterials(items, to: category)
+                        }
+#endif
                 }
             }
         }
@@ -39,11 +41,70 @@ struct MaterialLibraryView: View {
         } message: { Text(store.lastError ?? "") }
     }
 
+    private func materials(in category: String) -> [EngineeringMaterial] {
+        store.allMaterials
+            .filter { $0.category.caseInsensitiveCompare(category) == .orderedSame }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func categoryHeader(_ category: String) -> some View {
+        HStack {
+            Text(category)
+            Spacer()
+            Text("\(materials(in: category).count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+#if os(macOS)
+            Image(systemName: "arrow.down.square")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .help("Drop a user-created material here to move it to \(category)")
+#endif
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func materialMenu(_ material: EngineeringMaterial, currentCategory: String) -> some View {
+        if material.isBuiltIn {
+            Button("Duplicate to My Materials") { store.duplicate(material) }
+        } else {
+            Menu("Move to Category") {
+                ForEach(store.categories.filter { $0.caseInsensitiveCompare(currentCategory) != .orderedSame }, id: \.self) { target in
+                    Button(target) { store.move(material, to: target) }
+                }
+            }
+            Divider()
+            Button("Delete", role: .destructive) { store.delete(id: material.id) }
+        }
+    }
+
+#if os(macOS)
+    private func moveDroppedMaterials(_ items: [String], to category: String) -> Bool {
+        var moved = false
+        for item in items {
+            guard let id = UUID(uuidString: item),
+                  let material = store.userMaterials.first(where: { $0.id == id }) else { continue }
+            store.move(material, to: category)
+            moved = true
+        }
+        return moved
+    }
+#endif
+
     private func row(_ material: EngineeringMaterial) -> some View {
         VStack(alignment: .leading, spacing: density.rowPadding) {
             HStack {
                 Text(material.name).font(.system(size: density.bodySize, weight: .semibold))
-                if material.isBuiltIn { Text("Built-in").font(.caption2).foregroundStyle(.secondary) }
+                Spacer()
+                if material.isBuiltIn {
+                    Text("Built-in").font(.caption2).foregroundStyle(.secondary)
+                } else {
+                    Text("My Material").font(.caption2).foregroundStyle(.secondary)
+#if os(macOS)
+                    Image(systemName: "line.3.horizontal").font(.caption2).foregroundStyle(.tertiary)
+#endif
+                }
             }
             if let grade = material.grade, !grade.isEmpty {
                 Text(grade).font(.system(size: density.smallSize)).foregroundStyle(.secondary)
