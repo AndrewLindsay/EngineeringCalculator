@@ -69,7 +69,16 @@ struct PipeWeightBuoyancyView: View {
             Section { DisclosureGroup("Calculation Details", isExpanded: $showDetails) { if let d = CalculationRegistry.definition(id: "pipeWeightBuoyancy")?.details { CalculationDetailsView(details: d) } } }
         }
         .formStyle(.grouped).navigationTitle("Pipe Weight & Buoyancy")
+        .onAppear { initialisePipeMaterialSelection() }
+        .onChange(of: materialStore.steelMaterials.map(\.id)) { _, _ in initialisePipeMaterialSelection() }
         .sheet(isPresented: $showingAddLayer) { NavigationStack { AddPipeLayerView { m, t in extraLayers.append(EditableLayer(material: m, thicknessMM: t)) }.environmentObject(materialStore) } }
+    }
+
+    private func initialisePipeMaterialSelection() {
+        let steels = materialStore.steelMaterials
+        guard !steels.isEmpty else { selectedPipeMaterialID = nil; return }
+        if let selectedPipeMaterialID, steels.contains(where: { $0.id == selectedPipeMaterialID }) { return }
+        selectedPipeMaterialID = steels.first?.id
     }
 
     @ViewBuilder private func layerRow(_ layer: Binding<EditableLayer>) -> some View {
