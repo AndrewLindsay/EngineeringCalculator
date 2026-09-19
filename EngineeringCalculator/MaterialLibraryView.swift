@@ -114,9 +114,68 @@ private struct MaterialDetailView: View {
             } else { ContentUnavailableView("Material Not Found", systemImage: "questionmark.folder") }
         }
     }
-    @ViewBuilder private func propertySection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View { VStack(alignment: .leading, spacing: 8) { Text(title).font(.headline); VStack(spacing: 0) { content() }.background(.quaternary.opacity(0.18)).clipShape(RoundedRectangle(cornerRadius: 10)).overlay { RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1) } } }
-    private func propertyRow(_ key: String, _ value: String) -> some View { HStack(alignment: .top, spacing: 0) { Text(key).fontWeight(.semibold).foregroundStyle(.secondary).frame(width: 190, alignment: .leading); Divider().padding(.horizontal, 12); Text(value).fontWeight(.medium).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }.padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() } }
-    private func propertyRow(_ key: String, _ value: Double?, unit: String) -> some View { HStack(alignment: .firstTextBaseline, spacing: 0) { Text(key).fontWeight(.semibold).foregroundStyle(.secondary).frame(width: 190, alignment: .leading); Divider().padding(.horizontal, 12); if let value { Text(unit.isEmpty ? value.formatted() : "\(value.formatted()) \(unit)").monospacedDigit() } else { Text("Not specified").foregroundStyle(.secondary) }; Spacer() }.padding(.horizontal, 14).padding(.vertical, 10).overlay(alignment: .bottom) { Divider() } }
+
+    @ViewBuilder private func propertySection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            VStack(spacing: 0) { content() }
+                .background(.quaternary.opacity(0.18))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay { RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 1) }
+        }
+    }
+
+    private var propertyLabelWidth: CGFloat {
+#if os(iOS)
+        150
+#else
+        190
+#endif
+    }
+
+    private func propertyRow(_ key: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(key)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: propertyLabelWidth, alignment: .leading)
+            Divider().padding(.horizontal, 12)
+            Text(value)
+                .fontWeight(.medium)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func propertyRow(_ key: String, _ value: Double?, unit: String) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(key)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: propertyLabelWidth, alignment: .leading)
+            Divider().padding(.horizontal, 12)
+            Group {
+                if let value {
+                    Text(unit.isEmpty ? value.formatted() : "\(value.formatted()) \(unit)").monospacedDigit()
+                } else {
+                    Text("Not specified").foregroundStyle(.secondary)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Divider() }
+    }
 }
 
 struct MaterialEditorView: View {
