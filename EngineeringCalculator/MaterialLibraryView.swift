@@ -215,7 +215,12 @@ struct MaterialEditorView: View {
 
     var body: some View {
         Form {
-            Section("Identity") { TextField("Name", text: $name); Picker("Existing category", selection: $category) { ForEach(store.categories, id: \.self) { Text($0).tag($0) }; if !store.categories.contains(where: { $0.caseInsensitiveCompare(category) == .orderedSame }) { Text(category).tag(category) } }; TextField("Category (type a new one if required)", text: $category); TextField("Grade / specification", text: $grade) }
+            Section("Identity") {
+                TextField("Name", text: $name)
+                Picker("Existing category", selection: $category) { ForEach(store.categories, id: \.self) { Text($0).tag($0) }; if !store.categories.contains(where: { $0.caseInsensitiveCompare(category) == .orderedSame }) { Text(category).tag(category) } }
+                TextField("Category (type a new one if required)", text: $category)
+                TextField("Grade / specification", text: $grade)
+            }
             Section("Core Properties") { TextField("Density (kg/m³)", text: $density); TextField("Thermal conductivity (W/(m·K))", text: $conductivity); TextField("Specific heat capacity (J/(kg·K))", text: $heatCapacity) }
             Section { Toggle("Advanced properties", isOn: $advanced) } footer: { Text("Enable Advanced to enter mechanical, extended thermal and electrical properties. All advanced values are optional. Scientific notation such as 8e-7 is accepted.") }
             if advanced {
@@ -224,7 +229,11 @@ struct MaterialEditorView: View {
                 Section("Electrical") { TextField("Electrical resistivity (Ω·m; e.g. 8e-7)", text: $electricalResistivity) }
             }
             Section("Traceability") { TextField("Source / basis", text: $source, axis: .vertical); TextField("Notes", text: $notes, axis: .vertical) }
-        }.navigationTitle(existing == nil ? "New Material" : "Edit Material").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save(); dismiss() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }
+        }
+        .padding(.horizontal, 12)
+        .navigationTitle(existing == nil ? "New Material" : "Edit Material")
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save(); dismiss() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }
+        .materialEditorSizing()
     }
 
     private static func text(_ value: Double?) -> String { EngineeringNumberFormatter.editableString(value) }
@@ -235,5 +244,16 @@ struct MaterialEditorView: View {
             unsDesignation: existing?.unsDesignation, standardDesignation: existing?.standardDesignation, productForm: existing?.productForm, materialCondition: existing?.materialCondition, smysMPa: existing?.smysMPa, smtsMPa: existing?.smtsMPa,
             thermalConductivitySeries: existing?.thermalConductivitySeries, specificHeatCapacitySeries: existing?.specificHeatCapacitySeries, thermalExpansionSeries: existing?.thermalExpansionSeries, youngsModulusSeries: existing?.youngsModulusSeries, poissonsRatioSeries: existing?.poissonsRatioSeries, yieldStrengthSeries: existing?.yieldStrengthSeries, ultimateTensileStrengthSeries: existing?.ultimateTensileStrengthSeries, shearModulusSeries: existing?.shearModulusSeries, electricalResistivitySeries: existing?.electricalResistivitySeries)
         if existing == nil { store.add(material) } else { store.update(material) }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func materialEditorSizing() -> some View {
+#if os(macOS)
+        self.frame(minWidth: 640, idealWidth: 760, minHeight: 560, idealHeight: 760)
+#else
+        self
+#endif
     }
 }
