@@ -4,6 +4,7 @@ struct MaterialLibraryView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     @Environment(\.interfaceDensity) private var density
     @State private var showingNew = false
+    @State private var materialPendingDeletion: EngineeringMaterial?
 
     var body: some View {
         List {
@@ -11,31 +12,54 @@ struct MaterialLibraryView: View {
                 Section {
                     let materials = materials(in: category)
                     if materials.isEmpty {
-                        Text("Drop a user material here")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        dropTarget(category, compact: true)
                     } else {
                         ForEach(materials) { material in
-                            NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
-                                .contextMenu { materialMenu(material, currentCategory: category) }
+                            HStack(spacing: 8) {
+                                NavigationLink { MaterialDetailView(materialID: material.id) } label: { row(material) }
+                                if !material.isBuiltIn {
+                                    Button(role: .destructive) { materialPendingDeletion = material } label: {
+                                        Image(systemName: "trash")
+                                            .frame(width: 24, height: 24)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help("Delete \(material.name)")
+                                }
+                            }
+                            .contextMenu { materialMenu(material, currentCategory: category) }
 #if os(macOS)
-                                .draggable(material.id.uuidString)
+                            .draggable(material.id.uuidString)
 #endif
                         }
                     }
-                } header: {
-                    categoryHeader(category)
 #if os(macOS)
+                    dropTarget(category, compact: false)
                         .dropDestination(for: String.self) { items, _ in
                             moveDroppedMaterials(items, to: category)
                         }
 #endif
+                } header: {
+                    categoryHeader(category)
                 }
             }
         }
         .navigationTitle("Material Library")
         .toolbar { Button { showingNew = true } label: { Label("New Material", systemImage: "plus") } }
         .sheet(isPresented: $showingNew) { NavigationStack { MaterialEditorView() } }
+        .confirmationDialog("Delete Material?", isPresented: Binding(
+            get: { materialPendingDeletion != nil },
+            set: { if !$0 { materialPendingDeletion = nil } }
+        ), titleVisibility: .visible) {
+            if let material = materialPendingDeletion {
+                Button("Delete \(material.name)", role: .destructive) {
+                    store.delete(id: material.id)
+                    materialPendingDeletion = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { materialPendingDeletion = nil }
+        } message: {
+            Text("This removes the material from My Materials. Built-in materials cannot be deleted.")
+        }
         .alert("Material Library", isPresented: Binding(get: { store.lastError != nil }, set: { if !$0 { store.lastError = nil } })) {
             Button("OK") { store.lastError = nil }
         } message: { Text(store.lastError ?? "") }
@@ -54,14 +78,35 @@ struct MaterialLibraryView: View {
             Text("\(materials(in: category).count)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-#if os(macOS)
-            Image(systemName: "arrow.down.square")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .help("Drop a user-created material here to move it to \(category)")
-#endif
         }
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func dropTarget(_ category: String, compact: Bool) -> some View {
+#if os(macOS)
+        HStack(spacing: 10) {
+            Image(systemName: "tray.and.arrow.down.fill")
+                .font(.system(size: compact ? 20 : 24, weight: .semibold))
+            Text("Drop material into \(category)")
+                .font(.system(size: compact ? 12 : 13, weight: .medium))
+            Spacer()
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, compact ? 8 : 11)
+        .frame(maxWidth: .infinity, minHeight: compact ? 38 : 46, alignment: .leading)
+        .background(.quaternary.opacity(0.22), in: RoundedRectangle(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [5, 4])) }
+        .contentShape(Rectangle())
+        .help("Drag a user-created material here to move it to \(category)")
+#else
+        if compact {
+            Text("No materials")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+#endif
     }
 
     @ViewBuilder
@@ -75,7 +120,7 @@ struct MaterialLibraryView: View {
                 }
             }
             Divider()
-            Button("Delete", role: .destructive) { store.delete(id: material.id) }
+            Button("Delete", role: .destructive) { materialPendingDeletion = material }
         }
     }
 
@@ -117,6 +162,8 @@ private struct MaterialDetailView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     let materialID: UUID
     @State private var editing = false
+    @State private var confirmingDelete = false
+    @Environment(\.dismiss) private var dismiss
     private var material: EngineeringMaterial? { store.allMaterials.first { $0.id == materialID } }
 
     var body: some View {
@@ -137,14 +184,27 @@ private struct MaterialDetailView: View {
                         if let source = material.source, !source.isEmpty { propertySection("Traceability") { propertyRow("Source / Basis", source) } }
                         if let notes = material.notes, !notes.isEmpty { propertySection("Notes") { propertyRow("Notes", notes) } }
                         HStack {
-                            if material.isBuiltIn { Button("Duplicate to My Materials") { store.duplicate(material) } }
-                            else { Button("Edit") { editing = true } }
+                            if material.isBuiltIn {
+                                Button("Duplicate to My Materials") { store.duplicate(material) }
+                            } else {
+                                Button("Edit") { editing = true }
+                                Button("Delete Material", role: .destructive) { confirmingDelete = true }
+                            }
                             Spacer()
                         }
                     }.padding(24).frame(maxWidth: 720, alignment: .leading)
                 }
                 .navigationTitle(material.name)
                 .sheet(isPresented: $editing) { NavigationStack { MaterialEditorView(existing: material) } }
+                .confirmationDialog("Delete Material?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                    Button("Delete \(material.name)", role: .destructive) {
+                        store.delete(id: material.id)
+                        dismiss()
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("This removes the material from My Materials.")
+                }
             } else { ContentUnavailableView("Material Not Found", systemImage: "questionmark.folder") }
         }
     }
