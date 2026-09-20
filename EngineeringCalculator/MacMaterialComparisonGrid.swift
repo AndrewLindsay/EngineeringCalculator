@@ -117,7 +117,8 @@ struct MacMaterialComparisonGrid: View {
             Color(nsColor: .windowBackgroundColor)
             Text(text).padding(8)
         }
-        .frame(width: width, maxHeight: .infinity, alignment: .topLeading)
+        .frame(width: width, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .trailing) { resizeHandle(key: "property", currentWidth: width, minimum: minimumPropertyWidth) }
         .offset(x: horizontalOffset)
         .zIndex(20)
