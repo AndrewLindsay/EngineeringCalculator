@@ -2,6 +2,7 @@ import SwiftUI
 
 enum MaterialPropertyInputMode: String, CaseIterable, Identifiable { case constant="Constant", table="Table", equation="Equation"; var id:Self{self} }
 struct EditableMaterialPropertyPoint: Identifiable, Hashable { var id=UUID(); var temperatureC:String=""; var value:String="" }
+struct MaterialPropertyDraftResult { let fallback: Double?; let series: MaterialPropertySeries? }
 
 struct MaterialPropertyDraft: Hashable {
     var mode:MaterialPropertyInputMode; var constantValue:String; var referenceTemperatureC:String; var table:[EditableMaterialPropertyPoint]
@@ -16,19 +17,20 @@ struct MaterialPropertyDraft: Hashable {
     }
     private func number(_ s:String)->Double?{EngineeringNumberFormatter.parse(s)}
     var scalarValue:Double?{number(constantValue)}
-    func makeSeries()->MaterialPropertySeries?{
+    func makeSeries()->MaterialPropertyDraftResult{
+        let fallback = number(constantValue)
         switch mode {
-        case .constant:return nil
+        case .constant:return MaterialPropertyDraftResult(fallback:fallback,series:nil)
         case .table:
-            let points=table.compactMap{row->MaterialPropertyPoint? in guard let t=number(row.temperatureC),let v=number(row.value) else{return nil};return MaterialPropertyPoint(temperatureC:t,value:v)}.sorted{$0.temperatureC<$1.temperatureC}; guard !points.isEmpty else{return nil}; return MaterialPropertySeries(referenceValue:number(constantValue),referenceTemperatureC:number(referenceTemperatureC),temperatureTable:points,source:source.isEmpty ? nil:source,basis:basis.isEmpty ? nil:basis)
+            let points=table.compactMap{row->MaterialPropertyPoint? in guard let t=number(row.temperatureC),let v=number(row.value) else{return nil};return MaterialPropertyPoint(temperatureC:t,value:v)}.sorted{$0.temperatureC<$1.temperatureC}; guard !points.isEmpty else{return MaterialPropertyDraftResult(fallback:fallback,series:nil)}; let series=MaterialPropertySeries(referenceValue:fallback,referenceTemperatureC:number(referenceTemperatureC),temperatureTable:points,source:source.isEmpty ? nil:source,basis:basis.isEmpty ? nil:basis); return MaterialPropertyDraftResult(fallback:fallback,series:series)
         case .equation:
             let e:MaterialPropertyEquation
             switch equationKind {
-            case .polynomial: guard let aa=number(a),let bb=number(b),let cc=number(c),let dd=number(d) else{return nil}; e=MaterialPropertyEquation(a:aa,b:bb,c:cc,d:dd,minimumTemperatureC:number(minimumTemperatureC),maximumTemperatureC:number(maximumTemperatureC),allowsExtrapolation:allowsExtrapolation,kind:.polynomial)
-            case .linearReference: guard let y0=number(constantValue),let t0=number(referenceTemperatureC),let k=number(slope) else{return nil}; e=MaterialPropertyEquation(minimumTemperatureC:number(minimumTemperatureC),maximumTemperatureC:number(maximumTemperatureC),allowsExtrapolation:allowsExtrapolation,kind:.linearReference,referenceValue:y0,referenceTemperatureC:t0,slope:k)
-            case .relativeLinear: guard let y0=number(constantValue),let t0=number(referenceTemperatureC),let alpha=number(temperatureCoefficient) else{return nil}; e=MaterialPropertyEquation(minimumTemperatureC:number(minimumTemperatureC),maximumTemperatureC:number(maximumTemperatureC),allowsExtrapolation:allowsExtrapolation,kind:.relativeLinear,referenceValue:y0,referenceTemperatureC:t0,temperatureCoefficient:alpha)
+            case .polynomial: guard let aa=number(a),let bb=number(b),let cc=number(c),let dd=number(d) else{return MaterialPropertyDraftResult(fallback:fallback,series:nil)}; e=MaterialPropertyEquation(a:aa,b:bb,c:cc,d:dd,minimumTemperatureC:number(minimumTemperatureC),maximumTemperatureC:number(maximumTemperatureC),allowsExtrapolation:allowsExtrapolation,kind:.polynomial)
+            case .linearReference: guard let y0=fallback,let t0=number(referenceTemperatureC),let k=number(slope) else{return MaterialPropertyDraftResult(fallback:fallback,series:nil)}; e=MaterialPropertyEquation(minimumTemperatureC:number(minimumTemperatureC),maximumTemperatureC:number(maximumTemperatureC),allowsExtrapolation:allowsExtrapolation,kind:.linearReference,referenceValue:y0,referenceTemperatureC:t0,slope:k)
+            case .relativeLinear: guard let y0=fallback,let t0=number(referenceTemperatureC),let alpha=number(temperatureCoefficient) else{return MaterialPropertyDraftResult(fallback:fallback,series:nil)}; e=MaterialPropertyEquation(minimumTemperatureC:number(minimumTemperatureC),maximumTemperatureC:number(maximumTemperatureC),allowsExtrapolation:allowsExtrapolation,kind:.relativeLinear,referenceValue:y0,referenceTemperatureC:t0,temperatureCoefficient:alpha)
             }
-            return MaterialPropertySeries(referenceValue:number(constantValue),referenceTemperatureC:number(referenceTemperatureC),equation:e,source:source.isEmpty ? nil:source,basis:basis.isEmpty ? nil:basis)
+            let series=MaterialPropertySeries(referenceValue:fallback,referenceTemperatureC:number(referenceTemperatureC),equation:e,source:source.isEmpty ? nil:source,basis:basis.isEmpty ? nil:basis); return MaterialPropertyDraftResult(fallback:fallback,series:series)
         }
     }
 }
