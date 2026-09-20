@@ -2,11 +2,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-    // Prefer the filename-extension declarations so the native macOS/iOS file
-    // pickers can recognise files written by Engineering Calculator even when
-    // Launch Services has not yet cached the app's exported type declarations.
-    static let engineeringCalculatorMaterial = UTType(filenameExtension: "ecmaterial", conformingTo: .json)!
-    static let engineeringCalculatorMaterialLibrary = UTType(filenameExtension: "ecmaterials", conformingTo: .json)!
+    // These identifiers are exported by the EngineeringCalculator app target.
+    // Keep the identifiers here exactly aligned with the target's Info settings:
+    //   .ecmaterial  -> com.andrewlindsay.engineeringcalculator.material
+    //   .ecmaterials -> com.andrewlindsay.engineeringcalculator.material-library
+    static let engineeringCalculatorMaterial = UTType(exportedAs: "com.andrewlindsay.engineeringcalculator.material", conformingTo: .json)
+    static let engineeringCalculatorMaterialLibrary = UTType(exportedAs: "com.andrewlindsay.engineeringcalculator.material-library", conformingTo: .json)
 }
 
 struct MaterialPortableFileDocument: FileDocument {
