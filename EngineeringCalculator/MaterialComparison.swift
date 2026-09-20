@@ -151,11 +151,67 @@ struct MaterialComparisonView: View {
         }
     }
 
-    private func comparisonRow(_ row: MaterialComparisonRow, comparison: MaterialComparison) -> some View {
+    private func comparisonRow(
+        _ row: MaterialComparisonRow,
+        comparison: MaterialComparison
+    ) -> some View {
         HStack(alignment: .top, spacing: 0) {
-            Text(row.label).frame(width: 220, alignment: .leading).padding(8)
-            ForEach(row.cells) { cell in VStack(alignment: .leading, spacing: 3) { Text(display(cell.value)).font(.body.monospacedDigit()); if cell.differsFromReference { if let delta = cell.absoluteDifference { Text(differenceText(delta: delta, percentage: cell.percentageDifference, value: cell.value)).font(.caption.monospacedDigit()).foregroundStyle(.secondary) } else { Text("Changed").font(.caption).foregroundStyle(.secondary) } } }.frame(width: 190, minHeight: 42, alignment: .topLeading).padding(8).background(cell.differsFromReference ? Color.accentColor.opacity(0.10) : Color.clear) }
-        }.overlay(alignment: .bottom) { Divider() }
+
+            // Property name
+            Text(row.label)
+                .frame(width: 220, alignment: .leading)
+                .padding(8)
+
+            // Material values
+            ForEach(row.cells) { cell in
+                VStack(alignment: .leading, spacing: 3) {
+
+                    // Main property value
+                    Text(display(cell.value))
+                        .font(.body.monospacedDigit())
+
+                    // Difference from reference material
+                    if cell.differsFromReference {
+                        if let delta = cell.absoluteDifference {
+                            Text(
+                                differenceText(
+                                    delta: delta,
+                                    percentage: cell.percentageDifference,
+                                    value: cell.value
+                                )
+                            )
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        } else {
+                            Text("Changed")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                // Fixed column width
+                .frame(
+                    width: 190,
+                    alignment: .leading
+                )
+
+                // Minimum row height — must be a separate frame modifier
+                .frame(
+                    minHeight: 42,
+                    alignment: .topLeading
+                )
+
+                .padding(8)
+                .background(
+                    cell.differsFromReference
+                        ? Color.accentColor.opacity(0.10)
+                        : Color.clear
+                )
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
     }
 
     private func display(_ value: MaterialComparisonValue) -> String { switch value { case .missing: return "Not specified"; case .text(let text): return text.isEmpty ? "—" : text; case .number(let value, let unit): let s = EngineeringNumberFormatter.string(value); return unit.map { "\(s) \($0)" } ?? s; case .propertySeries(let series): if let equation = series.equation { return equation.effectiveKind.rawValue }; if !series.temperatureTable.isEmpty { return "\(series.temperatureTable.count) temperature points" }; return "Reference value only" } }
