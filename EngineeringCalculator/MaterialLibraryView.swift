@@ -9,6 +9,7 @@ struct MaterialLibraryView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     @Environment(\.interfaceDensity) private var density
     @State private var showingNew = false
+    @State private var showingMaterialFiles = false
     @State private var materialPendingDeletion: EngineeringMaterial?
     @State private var libraryFilter: MaterialLibraryFilter = .all
     @State private var selectedMaterialID: UUID?
@@ -41,8 +42,25 @@ struct MaterialLibraryView: View {
         .navigationDestination(isPresented: Binding(get: { selectedMaterialID != nil }, set: { if !$0 { selectedMaterialID = nil } })) {
             if let id = selectedMaterialID { MaterialDetailView(materialID: id).onDisappear { selectedMaterialID = nil } }
         }
-        .toolbar { Button { showingNew = true } label: { Label("New Material", systemImage: "plus") } }
+        .toolbar {
+            Button {
+                showingMaterialFiles = true
+            } label: {
+                Label("Material Files", systemImage: "square.and.arrow.up.on.square")
+            }
+            .help("Import and export material files")
+
+            Button {
+                showingNew = true
+            } label: {
+                Label("New Material", systemImage: "plus")
+            }
+        }
         .sheet(isPresented: $showingNew) { NavigationStack { MaterialEditorView() } }
+        .sheet(isPresented: $showingMaterialFiles) {
+            MaterialImportExportView()
+                .environmentObject(store)
+        }
         .confirmationDialog("Delete Material?", isPresented: Binding(get: { materialPendingDeletion != nil }, set: { if !$0 { materialPendingDeletion = nil } }), titleVisibility: .visible) {
             if let material = materialPendingDeletion { Button("Delete \(material.name)", role: .destructive) { store.delete(id: material.id); materialPendingDeletion = nil } }
             Button("Cancel", role: .cancel) { materialPendingDeletion = nil }

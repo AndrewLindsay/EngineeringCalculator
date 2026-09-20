@@ -11,6 +11,8 @@
 		6F347569305D89420071CFC6 /* MaterialLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F347567305D89420071CFC6 /* MaterialLibrary.swift */; };
 		6F34756A305D89420071CFC6 /* MaterialLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F347568305D89420071CFC6 /* MaterialLibraryView.swift */; };
 		6F9E4EDC305F7DD3009583AE /* MaterialPortableFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDB305F7DD3009583AE /* MaterialPortableFileTests.swift */; };
+		6F9E4EDE305F7F5A009583AE /* MaterialPortableDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */; };
+		6F9E4EE0305F8013009583AE /* MaterialImportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */; };
 		A001 /* EngineeringCalculatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* EngineeringCalculatorApp.swift */; };
 		A002 /* CalculationDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* CalculationDefinition.swift */; };
 		A003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* HomeView.swift */; };
@@ -40,6 +42,9 @@
 		6F347567305D89420071CFC6 /* MaterialLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibrary.swift; sourceTree = "<group>"; };
 		6F347568305D89420071CFC6 /* MaterialLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibraryView.swift; sourceTree = "<group>"; };
 		6F9E4EDB305F7DD3009583AE /* MaterialPortableFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialPortableFileTests.swift; sourceTree = "<group>"; };
+		6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialPortableDocuments.swift; sourceTree = "<group>"; };
+		6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialImportExportView.swift; sourceTree = "<group>"; };
+		6F9E4EE1305F8F2B009583AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F001 /* EngineeringCalculatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringCalculatorApp.swift; sourceTree = "<group>"; };
 		F002 /* CalculationDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDefinition.swift; sourceTree = "<group>"; };
 		F003 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -88,6 +93,9 @@
 		GAPP /* EngineeringCalculator */ = {
 			isa = PBXGroup;
 			children = (
+				6F9E4EE1305F8F2B009583AE /* Info.plist */,
+				6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */,
+				6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */,
 				6F347567305D89420071CFC6 /* MaterialLibrary.swift */,
 				6F347568305D89420071CFC6 /* MaterialLibraryView.swift */,
 				F011 /* MaterialTemperaturePropertyEditor.swift */,
@@ -234,6 +242,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F9E4EE0305F8013009583AE /* MaterialImportExportView.swift in Sources */,
+				6F9E4EDE305F7F5A009583AE /* MaterialPortableDocuments.swift in Sources */,
 				A001 /* EngineeringCalculatorApp.swift in Sources */,
 				A002 /* CalculationDefinition.swift in Sources */,
 				6F347569305D89420071CFC6 /* MaterialLibrary.swift in Sources */,
@@ -283,6 +293,7 @@
 				DEVELOPMENT_TEAM = KL5TC2ZM6A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EngineeringCalculator/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Engineering Calculator";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -315,6 +326,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = KL5TC2ZM6A;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EngineeringCalculator/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Engineering Calculator";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
