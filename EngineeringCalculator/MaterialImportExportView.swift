@@ -27,34 +27,32 @@ struct MaterialImportExportView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Export") {
-                    Button {
-                        exportLibrary()
-                    } label: {
+                Section("Export Libraries") {
+                    Button { exportLibrary(store.userMaterials, filename: "EngineeringCalculator-My-Materials") } label: {
                         Label("Export My Materials…", systemImage: "square.and.arrow.up")
                     }
                     .disabled(store.userMaterials.isEmpty)
 
-                    if store.userMaterials.isEmpty {
-                        Text("There are no user materials to export yet.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Exports all \(store.userMaterials.count) user material\(store.userMaterials.count == 1 ? "" : "s") as a portable .ecmaterials file.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    Button { exportLibrary(store.builtInMaterials, filename: "EngineeringCalculator-Built-In-Materials") } label: {
+                        Label("Export Built-in Materials…", systemImage: "checkmark.seal")
                     }
+
+                    Button { exportLibrary(store.allMaterials, filename: "EngineeringCalculator-All-Materials") } label: {
+                        Label("Export All Materials…", systemImage: "square.stack.3d.up")
+                    }
+
+                    Text("Built-in materials may be exported for independent review and checking. Exporting does not make any changes to the built-in library.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
-                Section("Individual Material") {
-                    ForEach(store.userMaterials) { material in
-                        Button {
-                            export(material)
-                        } label: {
+                Section("Individual Materials") {
+                    ForEach(store.allMaterials) { material in
+                        Button { export(material) } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(material.name)
-                                    Text(material.category)
+                                    Text("\(material.category) • \(material.isBuiltIn ? "Built-in" : "My Material")")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -64,12 +62,6 @@ struct MaterialImportExportView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                    }
-
-                    if store.userMaterials.isEmpty {
-                        Text("Create or import a user material to enable individual export.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -128,11 +120,11 @@ struct MaterialImportExportView: View {
         }
     }
 
-    private func exportLibrary() {
+    private func exportLibrary(_ materials: [EngineeringMaterial], filename: String) {
         do {
-            exportDocument = MaterialPortableFileDocument(data: try store.exportUserLibraryData())
+            exportDocument = MaterialPortableFileDocument(data: try MaterialPortableCodec.encode(library: materials))
             exportContentType = .engineeringCalculatorMaterialLibrary
-            exportFilename = "EngineeringCalculatorMaterials"
+            exportFilename = filename
             showingExporter = true
         } catch {
             errorMessage = error.localizedDescription
