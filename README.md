@@ -2,7 +2,7 @@
 
 A modular SwiftUI engineering-calculation app for iOS and macOS.
 
-## Current development status — 19 September 2026
+## Current development status — 20 September 2026
 
 Active development branch: `feature/material-property-framework`
 
@@ -14,171 +14,81 @@ The project is currently focused on the reusable Materials Library and temperatu
 - Built-in and user-created materials.
 - Material categories and editable engineering properties.
 - Simplified and advanced material-property editing.
-- Temperature-dependent property representations:
-  - constant/scalar values;
-  - tabulated temperature/value data with linear interpolation;
-  - polynomial equations;
-  - linear-reference equations;
-  - relative-linear / temperature coefficient of resistance (TCR) equations.
-- Material Property Inspector for selecting a material/property, entering temperature, viewing the resolved value and method, graphing temperature-dependent behaviour, and reviewing equation/table/source information.
-- User materials are automatically persisted locally as JSON in Application Support.
+- Temperature-dependent property representations: constant/scalar, tabulated/interpolated, polynomial, linear-reference, and relative-linear/TCR.
+- Material Property Inspector with resolved value/method, graph and traceability information.
+- User materials persist locally as JSON in Application Support.
 - Existing pipe weight/buoyancy calculation remains operational.
+- **Portable material interchange backend added:** human-readable `.ecmaterial` / `.ecmaterials` document model, format/version validation, safe import merge, duplicate UUID regeneration and duplicate-name renaming.
 
 ## Validation baseline
 
-A deterministic material-property XCTest suite was added on 19 September 2026.
+The last confirmed local baseline before the portable-file changes was **21 tests passed, 0 failures** (6 pipe/calculation tests + 15 material resolver tests). Run **⌘U** after pulling the current branch; the portable-file backend change must be regression-tested locally before it is treated as the new green baseline.
 
-Current result on macOS: **21 tests passed, 0 failures**:
-
-- 6 existing pipe/calculation tests.
-- 15 MaterialPropertyResolver validation tests.
-
-The material tests deliberately use artificial values with simple analytical answers rather than relying on real material reference data. They cover:
-
-1. Constant property independent of temperature.
-2. Exact tabulated temperature point.
-3. Linear interpolation between table points.
-4. Temperature below table range rejected.
-5. Temperature above table range rejected.
-6. Polynomial equation evaluation.
-7. Polynomial minimum/maximum boundaries included.
-8. Polynomial outside its allowed range rejected.
-9. Relative-linear/TCR value at the reference temperature.
-10. Relative-linear/TCR value away from the reference temperature.
-11. Temperature-dependent equation requiring a temperature.
-12. Missing property correctly reported as missing.
-13. Available-property discovery matches actual material data.
-14. Switching materials produces independent results with no state leakage.
-15. Validation materials survive JSON encode/decode without loss.
-
-### Known validation fixtures
-
-The tests use deliberately simple definitions, including:
+The deterministic material tests use artificial values with simple analytical answers, including:
 
 - Constant density: `8000 kg/m³`.
-- Young's modulus table: `0 °C = 200 GPa`, `100 °C = 180 GPa`, `200 °C = 160 GPa`; therefore `50 °C = 190 GPa` by linear interpolation.
+- Young's modulus table: `0 °C = 200 GPa`, `100 °C = 180 GPa`, `200 °C = 160 GPa`; therefore `50 °C = 190 GPa`.
 - Polynomial thermal conductivity: `k(T) = 10 + 0.1T + 0.001T²`; therefore `k(100 °C) = 30 W/(m·K)`.
 - TCR resistivity: `ρ(T) = 1.0×10⁻⁶ [1 + 0.004(T − 20)] Ω·m`; therefore `ρ(20 °C) = 1.0×10⁻⁶ Ω·m` and `ρ(120 °C) = 1.4×10⁻⁶ Ω·m`.
 
-### Running the regression tests
+## Phase 1 — Portable material import/export
 
-Before and after significant code changes:
+### Implemented backend (20 September 2026)
 
-1. Open `EngineeringCalculator.xcodeproj` in Xcode.
-2. Select the EngineeringCalculator scheme and an appropriate Mac/iOS simulator destination.
-3. Choose **Product → Test** or press **⌘U**.
-4. Open the Xcode Test Navigator to review individual tests.
-5. Do not merge a feature change while resolver/calculation tests are failing unless the expected behaviour has intentionally changed and the tests have been reviewed accordingly.
+`MaterialPortableCodec` now provides the portable-file core:
 
-The 21-pass result is the current regression baseline.
+- single-material JSON export;
+- complete user-library JSON export;
+- `.ecmaterial` and `.ecmaterials` format identifiers;
+- format version `1` validation;
+- rejection of malformed JSON, unknown formats, unsupported future versions, empty documents and invalid single-material documents;
+- imported built-in flags are cleared so imported data cannot masquerade as protected built-in data;
+- duplicate UUIDs receive a new UUID;
+- duplicate names are retained safely using an explicit ` (Imported N)` suffix rather than overwriting existing data;
+- merge imports append to the existing user library rather than replacing it;
+- `MaterialLibraryStore` exposes export/import data methods and persists successful imports.
 
-## Next development phases
+Because `EngineeringMaterial`, `MaterialPropertySeries` and `MaterialPropertyEquation` are Codable, the portable document preserves scalar values, temperature tables, equations and coefficients, reference values/temperatures, validity ranges, extrapolation settings, traceability, identity metadata and notes.
 
-### Phase 1 — Portable material import/export
+### Next immediate work
 
-This is the next recommended implementation task.
+1. **Run the current project locally with ⌘U.** The previously confirmed baseline is 21/21; report any compiler/test failure before continuing.
+2. Add dedicated portable-file XCTest cases for:
+   - single material round trip;
+   - complete/multiple-material library round trip;
+   - all equation/property representations;
+   - malformed JSON;
+   - unsupported future version;
+   - duplicate UUID regeneration;
+   - duplicate name rename/merge behaviour.
+3. Add the user-facing SwiftUI document picker/exporter controls to the Materials Library:
+   - **Export Material…** for a selected user material;
+   - **Import Material(s)…**;
+   - **Export User Library…**;
+   - standard macOS/iOS file picker / iCloud Drive support.
+4. Run the complete test suite again on macOS and then manually exercise file export/import on iPhone.
 
-The internal user library already saves to JSON, and the data structures are Codable. Add a user-facing portable file format on top of that foundation.
+Do not proceed to Phase 2 until these Phase 1 items are green.
 
-Required features:
+## Phase 2 — Debug validation materials and manual UI verification
 
-- **Export Material…** for one selected user material.
-- **Import Material…** for importing one or more materials.
-- **Export User Library…** for all user-created materials.
-- **Import User Library…** with merge behaviour rather than silently replacing the current library.
-- Keep the underlying files human-readable JSON.
-- Proposed custom extensions:
-  - `.ecmaterial` for one material;
-  - `.ecmaterials` for a material library.
-- Preserve all material data, including:
-  - scalar properties;
-  - temperature tables;
-  - equation type and coefficients;
-  - reference values/reference temperatures;
-  - validity ranges and extrapolation setting;
-  - source and basis/traceability information;
-  - category, grade, designation, product form and condition;
-  - notes and other metadata.
-- Validate document format and format version on import.
-- Handle duplicate UUIDs and duplicate names explicitly; never silently overwrite an existing user material.
-- Work on both macOS and iOS/iCloud Drive through the standard document picker/file exporter interfaces.
+Expose the deterministic validation fixtures to Debug builds only and manually verify constant values, table interpolation/range warnings, polynomial and TCR evaluation/graphs, invalid temperatures, material/property switching, synchronized units/method/traceability, and compact iPhone/macOS layouts.
 
-Add automated tests for:
+## Phase 3 — Materials Library regression/UI pass
 
-- single-material export/import round trip;
-- complete user-library round trip;
-- multiple materials;
-- all property representations surviving serialization;
-- malformed/invalid JSON;
-- unsupported future format version;
-- duplicate UUID handling;
-- duplicate name handling/merge policy.
+Verify All/Built-in/My Materials filtering, category organisation, drag/drop/copy behaviour, drop targets, create/edit/duplicate/move/delete, built-in protection, simplified/advanced views, multiline headings, macOS editor resizing/padding, and practical table/equation editing.
 
-### Phase 2 — Debug validation materials and manual UI verification
+## Phase 4 — File format/versioning hardening
 
-Expose the same deterministic validation fixtures to Debug builds only, without adding them to the production built-in library.
+Freeze/document the first public material schema, define migrations, add compatibility fixture tests, and explicitly document units and temperature conventions.
 
-Use these fixtures to manually verify the Material Property Inspector and editor on both macOS and iPhone/iOS.
+## Phase 5 — Populate verified engineering materials
 
-Check:
+Add traceable real engineering materials only after the framework/editor/interchange format is stable. Preserve source, standard/grade, product form, condition and applicability, and avoid implying excessive precision.
 
-- constant property display;
-- exact table point;
-- interpolation;
-- table range warnings;
-- polynomial evaluation and graph;
-- equation validity boundaries;
-- TCR evaluation and graph;
-- missing/invalid temperature handling;
-- switching material/property updates all displayed data;
-- graph, result, units, method and traceability remain synchronized;
-- layouts remain usable in compact iPhone portrait mode and macOS windows.
+## Phase 6 — Continue modular calculator development
 
-### Phase 3 — Materials Library regression/UI pass
-
-Once the calculation framework and import/export are stable, perform a focused pass over the Materials Library UI to ensure earlier functionality has not regressed.
-
-Verify/restore as required:
-
-- **All / Built-in / My Materials** filtering.
-- Category organisation.
-- Drag/drop between categories.
-- Clear, adequately sized drop targets.
-- No duplicate/disabled empty-category drop areas.
-- Dragging a built-in material creates a user copy automatically.
-- Dragging/copying a user material also creates a copy when appropriate.
-- User materials can be created, edited, duplicated, moved and deleted.
-- Built-in materials remain protected from destructive editing.
-- Simplified property view remains concise while Advanced exposes the full property set.
-- Multiline headings such as Maximum service temperature display correctly on Mac and iPhone.
-- Material editor is appropriately resizable on macOS and has adequate left/right padding.
-- Tabular temperature data and equation/coefficient data are practical to enter and edit.
-
-### Phase 4 — File format/versioning hardening
-
-Before a large real material database is populated:
-
-- Freeze/document the first public material-file schema.
-- Define migration behaviour for future schema versions.
-- Add compatibility tests using stored fixture files from previous versions.
-- Consider checksums or validation diagnostics if useful, but keep files readable and version-control friendly.
-- Document units and temperature conventions explicitly in the schema/readme.
-
-### Phase 5 — Populate verified engineering materials
-
-Only after the framework, editor and file interchange are stable:
-
-- Add real engineering materials from traceable sources.
-- Record source, standard/grade, product form, condition and applicability.
-- Distinguish nominal/reference values from temperature-dependent data.
-- Avoid implying excessive precision in handbook/default values.
-- Add source-specific regression checks for important materials where appropriate.
-
-### Phase 6 — Continue modular calculator development
-
-With the material system stable, return to additional engineering calculation modules. New calculators should consume the shared material/property resolver rather than implementing independent material lookup/interpolation logic.
-
-Each new calculation module should include deterministic unit tests and should be added to the app-wide regression suite.
+New calculators should consume the shared material/property resolver and include deterministic unit tests.
 
 ## Current pipe calculation convention
 
@@ -196,19 +106,10 @@ At the start of a development session:
 
 ```bash
 git pull
-```
-
-Confirm the current branch before editing:
-
-```bash
 git branch --show-current
 ```
 
-For the current material-property work this should be:
-
-```text
-feature/material-property-framework
-```
+For the current work the branch should be `feature/material-property-framework`.
 
 Run the regression suite with **⌘U** before and after substantial changes.
 
@@ -221,4 +122,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-When resuming this project, read **Current development status**, confirm the regression suite is green, and continue with the first incomplete phase above.
+When resuming this project, read this README, confirm the regression suite is green, and continue with the first incomplete Phase 1 item above.
