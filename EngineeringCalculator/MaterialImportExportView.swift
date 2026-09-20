@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct MaterialImportExportView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
@@ -7,7 +8,7 @@ struct MaterialImportExportView: View {
     @State private var showingImporter = false
     @State private var showingExporter = false
     @State private var exportDocument = MaterialPortableFileDocument()
-    @State private var exportContentType = UTType.engineeringCalculatorMaterialLibrary
+    @State private var exportContentType: UTType = .engineeringCalculatorMaterialLibrary
     @State private var exportFilename = "EngineeringCalculatorMaterials"
     @State private var importSummary: MaterialImportSummary?
     @State private var errorMessage: String?
