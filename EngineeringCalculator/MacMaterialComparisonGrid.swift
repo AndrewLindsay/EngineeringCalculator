@@ -183,7 +183,8 @@ struct MacMaterialComparisonGrid: View {
             .padding(.vertical, 8)
             .padding(.horizontal, 8)
         }
-        .frame(width: width, minHeight: 42, alignment: .topLeading)
+        .frame(width: width, alignment: .topLeading)
+        .frame(minHeight: 42, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .clipped()
         .overlay(alignment: .trailing) {
