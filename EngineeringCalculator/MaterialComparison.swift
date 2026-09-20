@@ -48,12 +48,14 @@ struct MaterialComparisonView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     @Environment(\.dismiss) private var dismiss
     @State private var selectedIDs: Set<UUID> = []
+    @State private var selectionOrder: [UUID] = []
     @State private var referenceID: UUID?
     @State private var differencesOnly = false
+    @State private var showingComparison = false
 
     private var allMaterials: [EngineeringMaterial] { store.allMaterials.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
-    private var selectedMaterials: [EngineeringMaterial] { allMaterials.filter { selectedIDs.contains($0.id) } }
-    private var comparison: MaterialComparison? { guard selectedMaterials.count >= 2 else { return nil }; return MaterialComparisonEngine.compare(selectedMaterials, referenceMaterialID: referenceID) }
+    private var selectedMaterials: [EngineeringMaterial] { selectionOrder.compactMap { id in allMaterials.first { $0.id == id } } }
+    private var comparison: MaterialComparison? { guard showingComparison, selectedMaterials.count >= 2 else { return nil }; return MaterialComparisonEngine.compare(selectedMaterials, referenceMaterialID: referenceID) }
 
     var body: some View {
         NavigationStack {
@@ -67,18 +69,70 @@ struct MaterialComparisonView: View {
 
     private var selectionContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Select at least two materials to compare.").font(.headline)
-            Text("The reference material is the baseline used for absolute and percentage differences.").font(.callout).foregroundStyle(.secondary)
-            List { ForEach(groupedCategories, id: \.self) { category in Section(category) { ForEach(allMaterials.filter { $0.category == category }) { material in Button { toggle(material.id) } label: { HStack { Image(systemName: selectedIDs.contains(material.id) ? "checkmark.circle.fill" : "circle"); VStack(alignment: .leading) { Text(material.name); Text(material.isBuiltIn ? "Built-in" : "My Material").font(.caption).foregroundStyle(.secondary) }; Spacer(); if material.id == referenceID { Text("Reference").font(.caption2.weight(.semibold)) } }.contentShape(Rectangle()) }.buttonStyle(.plain) } } } }
-            HStack { Text("\(selectedIDs.count) selected").foregroundStyle(.secondary); Spacer(); Text(selectedIDs.count >= 2 ? "Comparison ready" : "Select another material").font(.caption).foregroundStyle(.secondary) }
+            Text("Select two or more materials to compare.").font(.headline)
+            Text("The first material selected becomes the reference. Selection badges show the comparison order.").font(.callout).foregroundStyle(.secondary)
+            List {
+                ForEach(groupedCategories, id: \.self) { category in
+                    Section(category) {
+                        ForEach(allMaterials.filter { $0.category == category }) { material in
+                            Button { toggle(material.id) } label: {
+                                HStack {
+                                    Image(systemName: selectedIDs.contains(material.id) ? "checkmark.circle.fill" : "circle")
+                                    VStack(alignment: .leading) {
+                                        Text(material.name)
+                                        Text(material.isBuiltIn ? "Built-in" : "My Material").font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if let badge = selectionBadge(for: material.id) { badge }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            HStack {
+                Text("\(selectedIDs.count) selected").foregroundStyle(.secondary)
+                Spacer()
+                Button("Compare (\(selectedIDs.count))") { showingComparison = true }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedIDs.count < 2)
+            }
         }.padding(20)
+    }
+
+    @ViewBuilder
+    private func selectionBadge(for id: UUID) -> some View {
+        if let index = selectionOrder.firstIndex(of: id) {
+            if index == 0 {
+                Text("R")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(Color.green, in: Circle())
+                    .accessibilityLabel("Reference material, selected first")
+            } else {
+                Text("\(index + 1)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(Color.accentColor, in: Circle())
+                    .accessibilityLabel("Selection \(index + 1)")
+            }
+        }
     }
 
     private var groupedCategories: [String] { Array(Set(allMaterials.map(\.category))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending } }
 
     private func comparisonContent(_ comparison: MaterialComparison) -> some View {
         VStack(spacing: 0) {
-            HStack { Picker("Reference", selection: Binding(get: { referenceID ?? comparison.referenceMaterialID }, set: { referenceID = $0 })) { ForEach(selectedMaterials) { Text($0.name).tag($0.id) } }.frame(maxWidth: 360); Toggle("Differences Only", isOn: $differencesOnly); Spacer(); Button("Change Materials") { selectedIDs.removeAll(); referenceID = nil } }.padding(16)
+            HStack {
+                Picker("Reference", selection: Binding(get: { referenceID ?? comparison.referenceMaterialID }, set: { referenceID = $0 })) { ForEach(selectedMaterials) { Text($0.name).tag($0.id) } }.frame(maxWidth: 360)
+                Toggle("Differences Only", isOn: $differencesOnly)
+                Spacer()
+                Button("Change Materials") { showingComparison = false }
+            }.padding(16)
             Divider()
             comparisonTable(comparison)
         }
@@ -106,6 +160,21 @@ struct MaterialComparisonView: View {
 
     private func display(_ value: MaterialComparisonValue) -> String { switch value { case .missing: return "Not specified"; case .text(let text): return text.isEmpty ? "—" : text; case .number(let value, let unit): let s = EngineeringNumberFormatter.string(value); return unit.map { "\(s) \($0)" } ?? s; case .propertySeries(let series): if let equation = series.equation { return equation.effectiveKind.rawValue }; if !series.temperatureTable.isEmpty { return "\(series.temperatureTable.count) temperature points" }; return "Reference value only" } }
     private func differenceText(delta: Double, percentage: Double?, value: MaterialComparisonValue) -> String { let sign = delta > 0 ? "+" : ""; let unit: String; if case .number(_, let u) = value, let u { unit = " \(u)" } else { unit = "" }; let base = "Δ \(sign)\(EngineeringNumberFormatter.string(delta))\(unit)"; guard let percentage else { return base }; return "\(base) (\(percentage > 0 ? "+" : "")\(EngineeringNumberFormatter.string(percentage))%)" }
-    private func toggle(_ id: UUID) { if selectedIDs.contains(id) { selectedIDs.remove(id); if referenceID == id { referenceID = selectedIDs.first } } else { selectedIDs.insert(id); if referenceID == nil { referenceID = id } } }
-    private func normaliseReference() { if let referenceID, selectedIDs.contains(referenceID) { return }; referenceID = selectedMaterials.first?.id }
+
+    private func toggle(_ id: UUID) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+            selectionOrder.removeAll { $0 == id }
+        } else {
+            selectedIDs.insert(id)
+            selectionOrder.append(id)
+        }
+        referenceID = selectionOrder.first
+    }
+
+    private func normaliseReference() {
+        selectionOrder.removeAll { !selectedIDs.contains($0) }
+        for id in selectedIDs where !selectionOrder.contains(id) { selectionOrder.append(id) }
+        if referenceID == nil || !selectedIDs.contains(referenceID!) { referenceID = selectionOrder.first }
+    }
 }
