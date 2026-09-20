@@ -161,8 +161,27 @@ struct MaterialComparisonView: View {
     private func differenceText(delta: Double, percentage: Double?, value: MaterialComparisonValue) -> String { let sign = delta > 0 ? "+" : ""; let unit: String; if case .number(_, let u) = value, let u { unit = " \(u)" } else { unit = "" }; let base = "Δ \(sign)\(EngineeringNumberFormatter.string(delta))\(unit)"; guard let percentage else { return base }; return "\(base) (\(percentage > 0 ? "+" : "")\(EngineeringNumberFormatter.string(percentage))%)" }
     private func toggle(_ id: UUID) { if selectedIDs.contains(id) { selectedIDs.remove(id); selectionOrder.removeAll { $0 == id } } else { selectedIDs.insert(id); selectionOrder.append(id) }; referenceID = selectionOrder.first }
     private func normaliseReference() { selectionOrder.removeAll { !selectedIDs.contains($0) }; for id in selectedIDs where !selectionOrder.contains(id) { selectionOrder.append(id) }; if referenceID == nil || !selectedIDs.contains(referenceID!) { referenceID = selectionOrder.first } }
-    private func beginComparison() { #if os(macOS) if !standaloneWindow { openMacComparisonWindow(); dismiss(); return } #endif showingComparison = true }
-    private func closeView() { #if os(macOS) if standaloneWindow { NSApp.keyWindow?.close(); return } #endif dismiss() }
+
+    private func beginComparison() {
+        #if os(macOS)
+        if !standaloneWindow {
+            openMacComparisonWindow()
+            dismiss()
+            return
+        }
+        #endif
+        showingComparison = true
+    }
+
+    private func closeView() {
+        #if os(macOS)
+        if standaloneWindow {
+            NSApp.keyWindow?.close()
+            return
+        }
+        #endif
+        dismiss()
+    }
 
     #if os(macOS)
     private func openMacComparisonWindow() {
