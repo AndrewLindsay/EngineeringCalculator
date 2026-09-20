@@ -163,6 +163,8 @@ Add traceable real engineering materials only after the framework/editor/interch
 
 New calculators should consume the shared material/property resolver and include deterministic unit tests.
 
+Before a calculator evaluates results, it must validate that every selected material provides the properties required by that calculation. Missing required data (for example density, specific heat capacity or thermal conductivity) must produce a clear, actionable user warning rather than silently substituting zero/default data or producing a misleading result. Calculators should declare their required and optional material properties so validation can be handled by a reusable central material-validation layer. Temperature-dependent properties must also be checked for resolvability at the requested operating condition, including validity range/extrapolation rules. See `DEVELOPMENT_STATUS.md` for the planned validation architecture and test cases.
+
 ## Current pipe calculation convention
 
 Dry pipe mass/weight excludes internal contents and buoyancy.
