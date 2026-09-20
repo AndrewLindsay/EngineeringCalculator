@@ -55,7 +55,6 @@ struct MaterialComparisonView: View {
     @State private var referenceID: UUID?
     @State private var differencesOnly = false
     @State private var showingComparison: Bool
-    @State private var horizontalScrollOffset: CGFloat = 0
     private let standaloneWindow: Bool
 
     private let propertyColumnWidth: CGFloat = 220
@@ -111,49 +110,99 @@ struct MaterialComparisonView: View {
         }
     }
 
+    @ViewBuilder
     private func comparisonTable(_ comparison: MaterialComparison) -> some View {
+        #if os(macOS)
+        macComparisonTable(comparison)
+        #else
+        mobileComparisonTable(comparison)
+        #endif
+    }
+
+    #if os(macOS)
+    private func macComparisonTable(_ comparison: MaterialComparison) -> some View {
+        let rows = differencesOnly ? comparison.differingRows : comparison.rows
+        return HStack(spacing: 0) {
+            frozenColumns(comparison, rows: rows)
+            Divider()
+            ScrollView(.horizontal) {
+                scrollingColumns(comparison, rows: rows)
+            }
+        }
+    }
+
+    private func frozenColumns(_ comparison: MaterialComparison, rows: [MaterialComparisonRow]) -> some View {
+        ScrollView(.vertical) {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    Text("Property").fontWeight(.semibold).frame(width: propertyColumnWidth, alignment: .leading).padding(8)
+                    if let reference = comparison.materials.first { materialHeader(reference, subtitle: "Reference") }
+                }.background(.quaternary.opacity(0.35))
+                ForEach(MaterialComparisonSection.allCases) { section in
+                    let sectionRows = rows.filter { $0.section == section }
+                    if !sectionRows.isEmpty {
+                        Text(section.rawValue).font(.headline).frame(width: propertyColumnWidth + materialColumnWidth + 32, alignment: .leading).padding(8).background(.regularMaterial)
+                        ForEach(sectionRows) { row in
+                            HStack(alignment: .top, spacing: 0) {
+                                Text(row.label).frame(width: propertyColumnWidth, alignment: .leading).padding(8)
+                                if let referenceCell = row.cells.first { comparisonCell(referenceCell) }
+                            }.overlay(alignment: .bottom) { Divider() }
+                        }
+                    }
+                }
+            }.padding(12)
+        }
+    }
+
+    private func scrollingColumns(_ comparison: MaterialComparison, rows: [MaterialComparisonRow]) -> some View {
+        ScrollView(.vertical) {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    ForEach(Array(comparison.materials.dropFirst())) { material in materialHeader(material, subtitle: "Compared") }
+                }.background(.quaternary.opacity(0.35))
+                ForEach(MaterialComparisonSection.allCases) { section in
+                    let sectionRows = rows.filter { $0.section == section }
+                    if !sectionRows.isEmpty {
+                        Text(section.rawValue).font(.headline).frame(width: CGFloat(max(1, comparison.materials.count - 1)) * (materialColumnWidth + 16), alignment: .leading).padding(8).background(.regularMaterial)
+                        ForEach(sectionRows) { row in
+                            HStack(alignment: .top, spacing: 0) {
+                                ForEach(Array(row.cells.dropFirst())) { cell in comparisonCell(cell) }
+                            }.overlay(alignment: .bottom) { Divider() }
+                        }
+                    }
+                }
+            }.padding(12)
+        }
+    }
+    #endif
+
+    private func mobileComparisonTable(_ comparison: MaterialComparison) -> some View {
         let rows = differencesOnly ? comparison.differingRows : comparison.rows
         return ScrollView([.horizontal, .vertical]) {
             LazyVStack(alignment: .leading, spacing: 0) {
-                comparisonHeader(comparison)
+                HStack(spacing: 0) {
+                    Text("Property").fontWeight(.semibold).frame(width: propertyColumnWidth, alignment: .leading).padding(8)
+                    ForEach(comparison.materials) { material in materialHeader(material, subtitle: material.id == comparison.referenceMaterialID ? "Reference" : "Compared") }
+                }.background(.quaternary.opacity(0.35))
                 ForEach(MaterialComparisonSection.allCases) { section in
                     let sectionRows = rows.filter { $0.section == section }
                     if !sectionRows.isEmpty {
                         Text(section.rawValue).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(8).background(.regularMaterial)
-                        ForEach(sectionRows) { row in comparisonRow(row, comparison: comparison) }
+                        ForEach(sectionRows) { row in
+                            HStack(alignment: .top, spacing: 0) {
+                                Text(row.label).frame(width: propertyColumnWidth, alignment: .leading).padding(8)
+                                ForEach(row.cells) { cell in comparisonCell(cell) }
+                            }.overlay(alignment: .bottom) { Divider() }
+                        }
                     }
                 }
-            }
-            .padding(12)
+            }.padding(12)
         }
-        #if os(macOS)
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.x
-        } action: { _, newValue in
-            horizontalScrollOffset = max(0, newValue)
-        }
-        #endif
-    }
-
-    private func comparisonHeader(_ comparison: MaterialComparison) -> some View {
-        HStack(spacing: 0) {
-            Text("Property").fontWeight(.semibold).frame(width: propertyColumnWidth, alignment: .leading).padding(8).background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 3)
-            if let reference = comparison.materials.first { materialHeader(reference, subtitle: "Reference").background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 2) }
-            ForEach(Array(comparison.materials.dropFirst())) { material in materialHeader(material, subtitle: "Compared") }
-        }.background(.quaternary.opacity(0.35))
     }
 
     private func materialHeader(_ material: EngineeringMaterial, subtitle: String) -> some View {
         VStack(alignment: .leading) { Text(material.name).fontWeight(.semibold); Text(subtitle).font(.caption2).foregroundStyle(.secondary) }
             .frame(width: materialColumnWidth, alignment: .leading).padding(8)
-    }
-
-    private func comparisonRow(_ row: MaterialComparisonRow, comparison: MaterialComparison) -> some View {
-        HStack(alignment: .top, spacing: 0) {
-            Text(row.label).frame(width: propertyColumnWidth, alignment: .leading).padding(8).background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 3)
-            if let referenceCell = row.cells.first { comparisonCell(referenceCell).background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 2) }
-            ForEach(Array(row.cells.dropFirst())) { cell in comparisonCell(cell) }
-        }.overlay(alignment: .bottom) { Divider() }
     }
 
     private func comparisonCell(_ cell: MaterialComparisonCell) -> some View {
@@ -205,14 +254,4 @@ struct MaterialComparisonView: View {
         window.makeKeyAndOrderFront(nil)
     }
     #endif
-}
-
-private extension View {
-    @ViewBuilder func frozenComparisonColumn(offset: CGFloat, zIndex: Double) -> some View {
-        #if os(macOS)
-        self.offset(x: offset).zIndex(zIndex)
-        #else
-        self
-        #endif
-    }
 }
