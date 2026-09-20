@@ -17,8 +17,13 @@ struct MacMaterialComparisonGrid: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let viewportWidth = max(0, geometry.size.width - 2 * horizontalPadding)
             let widths = resolvedWidths(availableWidth: geometry.size.width)
-            ScrollView([.horizontal, .vertical]) {
+            let tableWidth = totalWidth(widths)
+            let needsHorizontalScroll = tableWidth > viewportWidth + 1
+            let axes: Axis.Set = needsHorizontalScroll ? [.horizontal, .vertical] : .vertical
+
+            ScrollView(axes) {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     header(widths: widths)
                     ForEach(MaterialComparisonSection.allCases) { section in
@@ -31,11 +36,18 @@ struct MacMaterialComparisonGrid: View {
                         }
                     }
                 }
+                .frame(width: tableWidth, alignment: .leading)
                 .padding(.horizontal, horizontalPadding)
-                .frame(minWidth: max(0, geometry.size.width), alignment: .leading)
                 .background(MacComparisonScrollOffsetReader(offsetX: $horizontalOffset))
             }
+            .onChange(of: needsHorizontalScroll) { _, scrolling in
+                if !scrolling { horizontalOffset = 0 }
+            }
         }
+    }
+
+    private func totalWidth(_ widths: ColumnWidths) -> CGFloat {
+        widths.property + comparison.materials.reduce(CGFloat.zero) { $0 + widths.material($1.id) }
     }
 
     private func resolvedWidths(availableWidth: CGFloat) -> ColumnWidths {
@@ -80,7 +92,7 @@ struct MacMaterialComparisonGrid: View {
     }
 
     private func sectionHeader(_ title: String, widths: ColumnWidths) -> some View {
-        let total = widths.property + comparison.materials.reduce(CGFloat.zero) { $0 + widths.material($1.id) }
+        let total = totalWidth(widths)
         return ZStack(alignment: .leading) {
             Color(nsColor: .controlBackgroundColor)
             Text(title)
