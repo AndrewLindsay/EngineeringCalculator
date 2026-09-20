@@ -83,8 +83,7 @@ struct MaterialComparisonView: View {
                                         Text(material.isBuiltIn ? "Built-in" : "My Material").font(.caption).foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    if let badge = selectionBadge(for: material.id) { badge }
-                                }
+                                    selectionBadge(for: material.id)                                }
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
