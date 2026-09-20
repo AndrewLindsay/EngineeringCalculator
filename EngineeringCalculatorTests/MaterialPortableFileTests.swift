@@ -86,8 +86,10 @@ final class MaterialPortableFileTests: XCTestCase {
         XCTAssertEqual(material.specificHeatCapacitySeries?.equation?.effectiveKind, .linearReference)
         XCTAssertEqual(material.electricalResistivitySeries?.equation?.effectiveKind, .relativeLinear)
         XCTAssertEqual(material.youngsModulusSeries?.temperatureTable.count, 3)
-        XCTAssertEqual(material.youngsModulusSeries?.value(atTemperatureC: 150), 193, accuracy: 1e-12)
-        XCTAssertEqual(material.electricalResistivitySeries?.value(atTemperatureC: 120), 1.4e-6, accuracy: 1e-15)
+        let interpolatedE = try XCTUnwrap(material.youngsModulusSeries?.value(atTemperatureC: 150))
+        let resistivity = try XCTUnwrap(material.electricalResistivitySeries?.value(atTemperatureC: 120))
+        XCTAssertEqual(interpolatedE, 193, accuracy: 1e-12)
+        XCTAssertEqual(resistivity, 1.4e-6, accuracy: 1e-15)
     }
 
     func testMalformedJSONIsRejected() {
