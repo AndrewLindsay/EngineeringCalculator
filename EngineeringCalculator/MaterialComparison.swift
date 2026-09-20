@@ -44,6 +44,11 @@ enum MaterialComparisonEngine {
     private static func approximatelyEqual(_ lhs: Double, _ rhs: Double) -> Bool { let scale = max(abs(lhs), abs(rhs), 1); return abs(lhs - rhs) <= max(absoluteTolerance, relativeTolerance * scale) }
 }
 
+private struct ComparisonHorizontalOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
 struct MaterialComparisonView: View {
     @EnvironmentObject private var store: MaterialLibraryStore
     @Environment(\.dismiss) private var dismiss
@@ -52,7 +57,10 @@ struct MaterialComparisonView: View {
     @State private var referenceID: UUID?
     @State private var differencesOnly = false
     @State private var showingComparison = false
+    @State private var horizontalScrollOffset: CGFloat = 0
 
+    private let propertyColumnWidth: CGFloat = 220
+    private let materialColumnWidth: CGFloat = 190
     private var allMaterials: [EngineeringMaterial] { store.allMaterials.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
     private var selectedMaterials: [EngineeringMaterial] { selectionOrder.compactMap { id in allMaterials.first { $0.id == id } } }
     private var comparison: MaterialComparison? { guard showingComparison, selectedMaterials.count >= 2 else { return nil }; return MaterialComparisonEngine.compare(selectedMaterials, referenceMaterialID: referenceID) }
@@ -63,7 +71,11 @@ struct MaterialComparisonView: View {
                 .navigationTitle("Compare Materials")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
         }
+        #if os(macOS)
+        .frame(minWidth: 760, idealWidth: 1100, maxWidth: .infinity, minHeight: 560, idealHeight: 720, maxHeight: .infinity)
+        #else
         .frame(minWidth: 620, minHeight: 520)
+        #endif
         .onChange(of: selectedIDs) { _, _ in normaliseReference() }
     }
 
@@ -71,67 +83,17 @@ struct MaterialComparisonView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Select two or more materials to compare.").font(.headline)
             Text("The first material selected becomes the reference. Selection badges show the comparison order.").font(.callout).foregroundStyle(.secondary)
-            List {
-                ForEach(groupedCategories, id: \.self) { category in
-                    Section(category) {
-                        ForEach(allMaterials.filter { $0.category == category }) { material in
-                            Button { toggle(material.id) } label: {
-                                HStack {
-                                    Image(systemName: selectedIDs.contains(material.id) ? "checkmark.circle.fill" : "circle")
-                                    VStack(alignment: .leading) {
-                                        Text(material.name)
-                                        Text(material.isBuiltIn ? "Built-in" : "My Material").font(.caption).foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    selectionBadge(for: material.id)                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-            HStack {
-                Text("\(selectedIDs.count) selected").foregroundStyle(.secondary)
-                Spacer()
-                Button("Compare (\(selectedIDs.count))") { showingComparison = true }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(selectedIDs.count < 2)
-            }
+            List { ForEach(groupedCategories, id: \.self) { category in Section(category) { ForEach(allMaterials.filter { $0.category == category }) { material in Button { toggle(material.id) } label: { HStack { Image(systemName: selectedIDs.contains(material.id) ? "checkmark.circle.fill" : "circle"); VStack(alignment: .leading) { Text(material.name); Text(material.isBuiltIn ? "Built-in" : "My Material").font(.caption).foregroundStyle(.secondary) }; Spacer(); selectionBadge(for: material.id) }.contentShape(Rectangle()) }.buttonStyle(.plain) } } } }
+            HStack { Text("\(selectedIDs.count) selected").foregroundStyle(.secondary); Spacer(); Button("Compare (\(selectedIDs.count))") { showingComparison = true }.buttonStyle(.borderedProminent).disabled(selectedIDs.count < 2) }
         }.padding(20)
     }
 
-    @ViewBuilder
-    private func selectionBadge(for id: UUID) -> some View {
-        if let index = selectionOrder.firstIndex(of: id) {
-            if index == 0 {
-                Text("R")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 24, height: 24)
-                    .background(Color.green, in: Circle())
-                    .accessibilityLabel("Reference material, selected first")
-            } else {
-                Text("\(index + 1)")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 24, height: 24)
-                    .background(Color.accentColor, in: Circle())
-                    .accessibilityLabel("Selection \(index + 1)")
-            }
-        }
-    }
-
+    @ViewBuilder private func selectionBadge(for id: UUID) -> some View { if let index = selectionOrder.firstIndex(of: id) { if index == 0 { Text("R").font(.caption2.bold()).foregroundStyle(.white).frame(width: 24, height: 24).background(Color.green, in: Circle()).accessibilityLabel("Reference material, selected first") } else { Text("\(index + 1)").font(.caption2.bold()).foregroundStyle(.white).frame(width: 24, height: 24).background(Color.accentColor, in: Circle()).accessibilityLabel("Selection \(index + 1)") } } }
     private var groupedCategories: [String] { Array(Set(allMaterials.map(\.category))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending } }
 
     private func comparisonContent(_ comparison: MaterialComparison) -> some View {
         VStack(spacing: 0) {
-            HStack {
-                Picker("Reference", selection: Binding(get: { referenceID ?? comparison.referenceMaterialID }, set: { referenceID = $0 })) { ForEach(selectedMaterials) { Text($0.name).tag($0.id) } }.frame(maxWidth: 360)
-                Toggle("Differences Only", isOn: $differencesOnly)
-                Spacer()
-                Button("Change Materials") { showingComparison = false }
-            }.padding(16)
+            HStack { Picker("Reference", selection: Binding(get: { referenceID ?? comparison.referenceMaterialID }, set: { referenceID = $0 })) { ForEach(selectedMaterials) { Text($0.name).tag($0.id) } }.frame(maxWidth: 360); Toggle("Differences Only", isOn: $differencesOnly); Spacer(); Button("Change Materials") { showingComparison = false } }.padding(16)
             Divider()
             comparisonTable(comparison)
         }
@@ -141,95 +103,68 @@ struct MaterialComparisonView: View {
         let rows = differencesOnly ? comparison.differingRows : comparison.rows
         return ScrollView([.horizontal, .vertical]) {
             LazyVStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 0) { Text("Property").fontWeight(.semibold).frame(width: 220, alignment: .leading).padding(8); ForEach(comparison.materials) { material in VStack(alignment: .leading) { Text(material.name).fontWeight(.semibold); Text(material.id == comparison.referenceMaterialID ? "Reference" : "Compared").font(.caption2).foregroundStyle(.secondary) }.frame(width: 190, alignment: .leading).padding(8) } }.background(.quaternary.opacity(0.35))
+                comparisonHeader(comparison)
                 ForEach(MaterialComparisonSection.allCases) { section in
                     let sectionRows = rows.filter { $0.section == section }
-                    if !sectionRows.isEmpty { Text(section.rawValue).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(8).background(.regularMaterial); ForEach(sectionRows) { row in comparisonRow(row, comparison: comparison) } }
-                }
-            }.padding(12)
-        }
-    }
-
-    private func comparisonRow(
-        _ row: MaterialComparisonRow,
-        comparison: MaterialComparison
-    ) -> some View {
-        HStack(alignment: .top, spacing: 0) {
-
-            // Property name
-            Text(row.label)
-                .frame(width: 220, alignment: .leading)
-                .padding(8)
-
-            // Material values
-            ForEach(row.cells) { cell in
-                VStack(alignment: .leading, spacing: 3) {
-
-                    // Main property value
-                    Text(display(cell.value))
-                        .font(.body.monospacedDigit())
-
-                    // Difference from reference material
-                    if cell.differsFromReference {
-                        if let delta = cell.absoluteDifference {
-                            Text(
-                                differenceText(
-                                    delta: delta,
-                                    percentage: cell.percentageDifference,
-                                    value: cell.value
-                                )
-                            )
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                        } else {
-                            Text("Changed")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                    if !sectionRows.isEmpty {
+                        Text(section.rawValue).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(8).background(.regularMaterial)
+                        ForEach(sectionRows) { row in comparisonRow(row, comparison: comparison) }
                     }
                 }
-                // Fixed column width
-                .frame(
-                    width: 190,
-                    alignment: .leading
-                )
-
-                // Minimum row height — must be a separate frame modifier
-                .frame(
-                    minHeight: 42,
-                    alignment: .topLeading
-                )
-
-                .padding(8)
-                .background(
-                    cell.differsFromReference
-                        ? Color.accentColor.opacity(0.10)
-                        : Color.clear
-                )
             }
+            .padding(12)
+            .background(GeometryReader { proxy in Color.clear.preference(key: ComparisonHorizontalOffsetKey.self, value: proxy.frame(in: .named("comparisonScroll")).minX) })
         }
-        .overlay(alignment: .bottom) {
-            Divider()
+        .coordinateSpace(name: "comparisonScroll")
+        .onPreferenceChange(ComparisonHorizontalOffsetKey.self) { horizontalScrollOffset = max(0, -$0) }
+    }
+
+    private func comparisonHeader(_ comparison: MaterialComparison) -> some View {
+        HStack(spacing: 0) {
+            Text("Property").fontWeight(.semibold).frame(width: propertyColumnWidth, alignment: .leading).padding(8).background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 3)
+            if let reference = comparison.materials.first {
+                materialHeader(reference, subtitle: "Reference").background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 2)
+            }
+            ForEach(Array(comparison.materials.dropFirst())) { material in materialHeader(material, subtitle: "Compared") }
+        }.background(.quaternary.opacity(0.35))
+    }
+
+    private func materialHeader(_ material: EngineeringMaterial, subtitle: String) -> some View {
+        VStack(alignment: .leading) { Text(material.name).fontWeight(.semibold); Text(subtitle).font(.caption2).foregroundStyle(.secondary) }
+            .frame(width: materialColumnWidth, alignment: .leading).padding(8)
+    }
+
+    private func comparisonRow(_ row: MaterialComparisonRow, comparison: MaterialComparison) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(row.label).frame(width: propertyColumnWidth, alignment: .leading).padding(8).background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 3)
+            if let referenceCell = row.cells.first { comparisonCell(referenceCell).background(.background).frozenComparisonColumn(offset: horizontalScrollOffset, zIndex: 2) }
+            ForEach(Array(row.cells.dropFirst())) { cell in comparisonCell(cell) }
+        }.overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func comparisonCell(_ cell: MaterialComparisonCell) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(display(cell.value)).font(.body.monospacedDigit())
+            if cell.differsFromReference { if let delta = cell.absoluteDifference { Text(differenceText(delta: delta, percentage: cell.percentageDifference, value: cell.value)).font(.caption.monospacedDigit()).foregroundStyle(.secondary) } else { Text("Changed").font(.caption).foregroundStyle(.secondary) } }
         }
+        .frame(width: materialColumnWidth, alignment: .leading)
+        .frame(minHeight: 42, alignment: .topLeading)
+        .padding(8)
+        .background(cell.differsFromReference ? Color.accentColor.opacity(0.10) : Color.clear)
     }
 
     private func display(_ value: MaterialComparisonValue) -> String { switch value { case .missing: return "Not specified"; case .text(let text): return text.isEmpty ? "—" : text; case .number(let value, let unit): let s = EngineeringNumberFormatter.string(value); return unit.map { "\(s) \($0)" } ?? s; case .propertySeries(let series): if let equation = series.equation { return equation.effectiveKind.rawValue }; if !series.temperatureTable.isEmpty { return "\(series.temperatureTable.count) temperature points" }; return "Reference value only" } }
     private func differenceText(delta: Double, percentage: Double?, value: MaterialComparisonValue) -> String { let sign = delta > 0 ? "+" : ""; let unit: String; if case .number(_, let u) = value, let u { unit = " \(u)" } else { unit = "" }; let base = "Δ \(sign)\(EngineeringNumberFormatter.string(delta))\(unit)"; guard let percentage else { return base }; return "\(base) (\(percentage > 0 ? "+" : "")\(EngineeringNumberFormatter.string(percentage))%)" }
+    private func toggle(_ id: UUID) { if selectedIDs.contains(id) { selectedIDs.remove(id); selectionOrder.removeAll { $0 == id } } else { selectedIDs.insert(id); selectionOrder.append(id) }; referenceID = selectionOrder.first }
+    private func normaliseReference() { selectionOrder.removeAll { !selectedIDs.contains($0) }; for id in selectedIDs where !selectionOrder.contains(id) { selectionOrder.append(id) }; if referenceID == nil || !selectedIDs.contains(referenceID!) { referenceID = selectionOrder.first } }
+}
 
-    private func toggle(_ id: UUID) {
-        if selectedIDs.contains(id) {
-            selectedIDs.remove(id)
-            selectionOrder.removeAll { $0 == id }
-        } else {
-            selectedIDs.insert(id)
-            selectionOrder.append(id)
-        }
-        referenceID = selectionOrder.first
-    }
-
-    private func normaliseReference() {
-        selectionOrder.removeAll { !selectedIDs.contains($0) }
-        for id in selectedIDs where !selectionOrder.contains(id) { selectionOrder.append(id) }
-        if referenceID == nil || !selectedIDs.contains(referenceID!) { referenceID = selectionOrder.first }
+private extension View {
+    @ViewBuilder func frozenComparisonColumn(offset: CGFloat, zIndex: Double) -> some View {
+        #if os(macOS)
+        self.offset(x: offset).zIndex(zIndex)
+        #else
+        self
+        #endif
     }
 }
