@@ -2,13 +2,15 @@
 
 A modular SwiftUI engineering-calculation app for iOS and macOS.
 
+> **Development agents/contributors:** Read [`AGENTS.md`](AGENTS.md) first for persistent development rules, then [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md) for the current project checkpoint, implementation history and roadmap. When the user says **refresh**, both documents must be read before development continues.
+
 ## Current development status — 20 September 2026
 
 Active development branch: `feature/material-property-framework`
 
 The project is currently focused on the reusable Materials Library and temperature-dependent material-property framework before moving on to additional engineering calculators.
 
-> **Detailed handover / development roadmap:** See [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md). It records completed work, design decisions, test/checkpoint information, lessons from previous implementations, and the detailed development path ahead. Read it first when resuming the project after a break.
+> **Detailed handover / development roadmap:** See [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md). It records completed work, design decisions, test/checkpoint information, lessons from previous implementations, and the detailed development path ahead.
 
 ### Current working functionality
 
@@ -194,4 +196,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-When resuming this project after a break, read **`DEVELOPMENT_STATUS.md` first**, confirm the full regression suite is green, smoke-test the comparison screen, and continue with **Phase 2.4 — PDF comparison reporting**.
+When resuming this project after a break, read **`AGENTS.md` first**, then **`DEVELOPMENT_STATUS.md`**, confirm the full regression suite is green, smoke-test the comparison screen, and continue with **Phase 2.4 — PDF comparison reporting**.
