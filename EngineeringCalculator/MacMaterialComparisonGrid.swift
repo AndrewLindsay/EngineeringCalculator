@@ -31,15 +31,15 @@ struct MacMaterialComparisonGrid: View {
                         }
                     }
                 }
-                .padding(horizontalPadding)
-                .frame(minWidth: max(0, geometry.size.width - 2 * horizontalPadding), alignment: .leading)
+                .padding(.horizontal, horizontalPadding)
+                .frame(minWidth: max(0, geometry.size.width), alignment: .leading)
                 .background(MacComparisonScrollOffsetReader(offsetX: $horizontalOffset))
             }
         }
     }
 
     private func resolvedWidths(availableWidth: CGFloat) -> ColumnWidths {
-        let usable = max(0, availableWidth - 2 * horizontalPadding - 18)
+        let usable = max(0, availableWidth - 2 * horizontalPadding)
         let count = max(1, comparison.materials.count)
         let minimumTotal = minimumPropertyWidth + CGFloat(count) * minimumMaterialWidth
         let extra = max(0, usable - minimumTotal)
@@ -70,7 +70,7 @@ struct MacMaterialComparisonGrid: View {
         HStack(spacing: 0) {
             frozenPropertyHeader(width: widths.property)
             if let reference = comparison.materials.first {
-                frozenMaterialHeader(reference, subtitle: "Reference", width: widths.material(reference.id), propertyWidth: widths.property)
+                frozenMaterialHeader(reference, subtitle: "Reference", width: widths.material(reference.id))
             }
             ForEach(Array(comparison.materials.dropFirst())) { material in
                 materialHeader(material, subtitle: "Compared", width: widths.material(material.id))
@@ -83,21 +83,27 @@ struct MacMaterialComparisonGrid: View {
         let total = widths.property + comparison.materials.reduce(CGFloat.zero) { $0 + widths.material($1.id) }
         return ZStack(alignment: .leading) {
             Color(nsColor: .controlBackgroundColor)
-            Text(title).font(.headline).padding(8)
+            Text(title)
+                .font(.headline)
+                .padding(8)
+                .offset(x: horizontalOffset)
+                .zIndex(20)
         }
         .frame(width: total, alignment: .leading)
+        .clipped()
     }
 
     private func comparisonRow(_ row: MaterialComparisonRow, widths: ColumnWidths) -> some View {
         HStack(alignment: .top, spacing: 0) {
             frozenPropertyCell(row.label, width: widths.property)
             if let referenceCell = row.cells.first {
-                frozenComparisonCell(referenceCell, width: widths.material(referenceCell.materialID), propertyWidth: widths.property)
+                frozenComparisonCell(referenceCell, width: widths.material(referenceCell.materialID))
             }
             ForEach(Array(row.cells.dropFirst())) { cell in
                 comparisonCell(cell, width: widths.material(cell.materialID))
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .overlay(alignment: .bottom) { Divider() }
     }
 
@@ -124,7 +130,7 @@ struct MacMaterialComparisonGrid: View {
         .zIndex(20)
     }
 
-    private func frozenMaterialHeader(_ material: EngineeringMaterial, subtitle: String, width: CGFloat, propertyWidth: CGFloat) -> some View {
+    private func frozenMaterialHeader(_ material: EngineeringMaterial, subtitle: String, width: CGFloat) -> some View {
         materialHeader(material, subtitle: subtitle, width: width)
             .background(Color(nsColor: .windowBackgroundColor))
             .overlay(alignment: .trailing) {
@@ -135,9 +141,10 @@ struct MacMaterialComparisonGrid: View {
             .zIndex(19)
     }
 
-    private func frozenComparisonCell(_ cell: MaterialComparisonCell, width: CGFloat, propertyWidth: CGFloat) -> some View {
+    private func frozenComparisonCell(_ cell: MaterialComparisonCell, width: CGFloat) -> some View {
         comparisonCell(cell, width: width)
             .background(Color(nsColor: .windowBackgroundColor))
+            .frame(maxHeight: .infinity, alignment: .topLeading)
             .overlay(alignment: .trailing) {
                 Rectangle().fill(Color.secondary.opacity(0.35)).frame(width: 1)
                 resizeHandle(key: cell.materialID.uuidString, materialID: cell.materialID, currentWidth: width, minimum: minimumMaterialWidth)
@@ -151,31 +158,34 @@ struct MacMaterialComparisonGrid: View {
             Text(material.name).fontWeight(.semibold)
             Text(subtitle).font(.caption2).foregroundStyle(.secondary)
         }
-        .frame(width: width, alignment: .leading)
         .padding(.vertical, 8)
-        .padding(.leading, 8)
+        .padding(.horizontal, 8)
+        .frame(width: width, alignment: .leading)
         .overlay(alignment: .trailing) {
             resizeHandle(key: material.id.uuidString, materialID: material.id, currentWidth: width, minimum: minimumMaterialWidth)
         }
     }
 
     private func comparisonCell(_ cell: MaterialComparisonCell, width: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(display(cell.value)).font(.body.monospacedDigit())
-            if cell.differsFromReference {
-                if let delta = cell.absoluteDifference {
-                    Text(differenceText(delta: delta, percentage: cell.percentageDifference, value: cell.value))
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                } else {
-                    Text("Changed").font(.caption).foregroundStyle(.secondary)
+        ZStack(alignment: .topLeading) {
+            (cell.differsFromReference ? Color.accentColor.opacity(0.10) : Color(nsColor: .windowBackgroundColor))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(display(cell.value)).font(.body.monospacedDigit())
+                if cell.differsFromReference {
+                    if let delta = cell.absoluteDifference {
+                        Text(differenceText(delta: delta, percentage: cell.percentageDifference, value: cell.value))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    } else {
+                        Text("Changed").font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 8)
         }
-        .frame(width: width, alignment: .leading)
-        .frame(minHeight: 42, alignment: .topLeading)
-        .padding(.vertical, 8)
-        .padding(.leading, 8)
-        .background(cell.differsFromReference ? Color.accentColor.opacity(0.10) : Color.clear)
+        .frame(width: width, minHeight: 42, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .clipped()
         .overlay(alignment: .trailing) {
             resizeHandle(key: cell.materialID.uuidString, materialID: cell.materialID, currentWidth: width, minimum: minimumMaterialWidth)
         }
@@ -248,7 +258,11 @@ private struct MacComparisonScrollOffsetReader: NSViewRepresentable {
         var offsetX: Binding<CGFloat>
         weak var clipView: NSClipView?
         var observer: NSObjectProtocol?
+        private var pendingOffset: CGFloat?
+        private var updateScheduled = false
+
         init(offsetX: Binding<CGFloat>) { self.offsetX = offsetX }
+
         func attach(from view: NSView) {
             var current: NSView? = view
             while let candidate = current, !(candidate is NSClipView) { current = candidate.superview }
@@ -256,11 +270,35 @@ private struct MacComparisonScrollOffsetReader: NSViewRepresentable {
             detach()
             clipView = clip
             clip.postsBoundsChangedNotifications = true
-            observer = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in self?.publish() }
+            observer = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
+                self?.publish()
+            }
             publish()
         }
-        func publish() { guard let clipView else { return }; offsetX.wrappedValue = max(0, clipView.bounds.origin.x) }
-        func detach() { if let observer { NotificationCenter.default.removeObserver(observer) }; observer = nil; clipView = nil }
+
+        func publish() {
+            guard let clipView else { return }
+            pendingOffset = max(0, clipView.bounds.origin.x)
+            guard !updateScheduled else { return }
+            updateScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.updateScheduled = false
+                guard let newOffset = self.pendingOffset else { return }
+                self.pendingOffset = nil
+                if abs(self.offsetX.wrappedValue - newOffset) > 0.5 {
+                    self.offsetX.wrappedValue = newOffset
+                }
+            }
+        }
+
+        func detach() {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observer = nil
+            clipView = nil
+            pendingOffset = nil
+            updateScheduled = false
+        }
         deinit { detach() }
     }
 }
