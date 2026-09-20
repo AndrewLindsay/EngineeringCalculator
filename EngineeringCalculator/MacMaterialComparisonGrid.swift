@@ -1,0 +1,318 @@
+#if os(macOS)
+import SwiftUI
+
+struct MacMaterialComparisonGrid: View {
+    let comparison: MaterialComparison
+    let rows: [MaterialComparisonRow]
+
+    @State private var propertyWidth: CGFloat = 220
+    @State private var materialWidths: [UUID: CGFloat] = [:]
+    @State private var horizontalOffset: CGFloat = 0
+    @State private var userResizedColumns: Set<String> = []
+
+    private let minimumPropertyWidth: CGFloat = 160
+    private let minimumMaterialWidth: CGFloat = 150
+    private let horizontalPadding: CGFloat = 12
+    private let handleWidth: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { geometry in
+            let viewportWidth = max(0, geometry.size.width - 2 * horizontalPadding)
+            let widths = resolvedWidths(availableWidth: geometry.size.width)
+            let tableWidth = totalWidth(widths)
+            let needsHorizontalScroll = tableWidth > viewportWidth + 1
+            let axes: Axis.Set = needsHorizontalScroll ? [.horizontal, .vertical] : .vertical
+
+            ScrollView(axes) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    header(widths: widths)
+                    ForEach(MaterialComparisonSection.allCases) { section in
+                        let sectionRows = rows.filter { $0.section == section }
+                        if !sectionRows.isEmpty {
+                            sectionHeader(section.rawValue, widths: widths)
+                            ForEach(sectionRows) { row in
+                                comparisonRow(row, widths: widths)
+                            }
+                        }
+                    }
+                }
+                .frame(width: tableWidth, alignment: .leading)
+                .padding(.horizontal, horizontalPadding)
+                .background(MacComparisonScrollOffsetReader(offsetX: $horizontalOffset))
+            }
+            .onChange(of: needsHorizontalScroll) { _, scrolling in
+                if !scrolling { horizontalOffset = 0 }
+            }
+        }
+    }
+
+    private func totalWidth(_ widths: ColumnWidths) -> CGFloat {
+        widths.property + comparison.materials.reduce(CGFloat.zero) { $0 + widths.material($1.id) }
+    }
+
+    private func resolvedWidths(availableWidth: CGFloat) -> ColumnWidths {
+        let usable = max(0, availableWidth - 2 * horizontalPadding)
+        let count = max(1, comparison.materials.count)
+        let minimumTotal = minimumPropertyWidth + CGFloat(count) * minimumMaterialWidth
+        let extra = max(0, usable - minimumTotal)
+
+        var property = userResizedColumns.contains("property") ? propertyWidth : minimumPropertyWidth + extra * 0.20
+        property = max(minimumPropertyWidth, property)
+
+        var materials: [UUID: CGFloat] = [:]
+        let automaticIDs = comparison.materials.filter { !userResizedColumns.contains($0.id.uuidString) }
+        let fixedMaterialTotal = comparison.materials.reduce(CGFloat.zero) { partial, material in
+            guard userResizedColumns.contains(material.id.uuidString) else { return partial }
+            return partial + max(minimumMaterialWidth, materialWidths[material.id] ?? minimumMaterialWidth)
+        }
+        let remaining = max(0, usable - property - fixedMaterialTotal)
+        let automaticWidth = automaticIDs.isEmpty ? minimumMaterialWidth : max(minimumMaterialWidth, remaining / CGFloat(automaticIDs.count))
+
+        for material in comparison.materials {
+            if userResizedColumns.contains(material.id.uuidString) {
+                materials[material.id] = max(minimumMaterialWidth, materialWidths[material.id] ?? minimumMaterialWidth)
+            } else {
+                materials[material.id] = automaticWidth
+            }
+        }
+        return ColumnWidths(property: property, materials: materials)
+    }
+
+    private func header(widths: ColumnWidths) -> some View {
+        HStack(spacing: 0) {
+            frozenPropertyHeader(width: widths.property)
+            if let reference = comparison.materials.first {
+                frozenMaterialHeader(reference, subtitle: "Reference", width: widths.material(reference.id))
+            }
+            ForEach(Array(comparison.materials.dropFirst())) { material in
+                materialHeader(material, subtitle: "Compared", width: widths.material(material.id))
+            }
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private func sectionHeader(_ title: String, widths: ColumnWidths) -> some View {
+        let total = totalWidth(widths)
+        return ZStack(alignment: .leading) {
+            Color(nsColor: .controlBackgroundColor)
+            Text(title)
+                .font(.headline)
+                .padding(8)
+                .offset(x: horizontalOffset)
+                .zIndex(20)
+        }
+        .frame(width: total, alignment: .leading)
+        .clipped()
+    }
+
+    private func comparisonRow(_ row: MaterialComparisonRow, widths: ColumnWidths) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            frozenPropertyCell(row.label, width: widths.property)
+            if let referenceCell = row.cells.first {
+                frozenComparisonCell(referenceCell, width: widths.material(referenceCell.materialID))
+            }
+            ForEach(Array(row.cells.dropFirst())) { cell in
+                comparisonCell(cell, width: widths.material(cell.materialID))
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func frozenPropertyHeader(width: CGFloat) -> some View {
+        ZStack(alignment: .leading) {
+            Color(nsColor: .windowBackgroundColor)
+            Text("Property").fontWeight(.semibold).padding(8)
+        }
+        .frame(width: width)
+        .overlay(alignment: .trailing) { resizeHandle(key: "property", currentWidth: width, minimum: minimumPropertyWidth) }
+        .offset(x: horizontalOffset)
+        .zIndex(20)
+    }
+
+    private func frozenPropertyCell(_ text: String, width: CGFloat) -> some View {
+        ZStack(alignment: .topLeading) {
+            Color(nsColor: .windowBackgroundColor)
+            Text(text).padding(8)
+        }
+        .frame(width: width, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .trailing) { resizeHandle(key: "property", currentWidth: width, minimum: minimumPropertyWidth) }
+        .offset(x: horizontalOffset)
+        .zIndex(20)
+    }
+
+    private func frozenMaterialHeader(_ material: EngineeringMaterial, subtitle: String, width: CGFloat) -> some View {
+        materialHeader(material, subtitle: subtitle, width: width)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .overlay(alignment: .trailing) {
+                Rectangle().fill(Color.secondary.opacity(0.35)).frame(width: 1)
+                resizeHandle(key: material.id.uuidString, materialID: material.id, currentWidth: width, minimum: minimumMaterialWidth)
+            }
+            .offset(x: horizontalOffset)
+            .zIndex(19)
+    }
+
+    private func frozenComparisonCell(_ cell: MaterialComparisonCell, width: CGFloat) -> some View {
+        comparisonCell(cell, width: width)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+            .overlay(alignment: .trailing) {
+                Rectangle().fill(Color.secondary.opacity(0.35)).frame(width: 1)
+                resizeHandle(key: cell.materialID.uuidString, materialID: cell.materialID, currentWidth: width, minimum: minimumMaterialWidth)
+            }
+            .offset(x: horizontalOffset)
+            .zIndex(19)
+    }
+
+    private func materialHeader(_ material: EngineeringMaterial, subtitle: String, width: CGFloat) -> some View {
+        VStack(alignment: .leading) {
+            Text(material.name).fontWeight(.semibold)
+            Text(subtitle).font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .frame(width: width, alignment: .leading)
+        .overlay(alignment: .trailing) {
+            resizeHandle(key: material.id.uuidString, materialID: material.id, currentWidth: width, minimum: minimumMaterialWidth)
+        }
+    }
+
+    private func comparisonCell(_ cell: MaterialComparisonCell, width: CGFloat) -> some View {
+        ZStack(alignment: .topLeading) {
+            (cell.differsFromReference ? Color.accentColor.opacity(0.10) : Color(nsColor: .windowBackgroundColor))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(display(cell.value)).font(.body.monospacedDigit())
+                if cell.differsFromReference {
+                    if let delta = cell.absoluteDifference {
+                        Text(differenceText(delta: delta, percentage: cell.percentageDifference, value: cell.value))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    } else {
+                        Text("Changed").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 8)
+        }
+        .frame(width: width, alignment: .topLeading)
+        .frame(minHeight: 42, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .clipped()
+        .overlay(alignment: .trailing) {
+            resizeHandle(key: cell.materialID.uuidString, materialID: cell.materialID, currentWidth: width, minimum: minimumMaterialWidth)
+        }
+    }
+
+    @ViewBuilder
+    private func resizeHandle(key: String, materialID: UUID? = nil, currentWidth: CGFloat, minimum: CGFloat) -> some View {
+        Rectangle()
+            .fill(Color.clear)
+            .frame(width: handleWidth)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        userResizedColumns.insert(key)
+                        let newWidth = max(minimum, currentWidth + value.translation.width)
+                        if let materialID { materialWidths[materialID] = newWidth } else { propertyWidth = newWidth }
+                    }
+            )
+    }
+
+    private func display(_ value: MaterialComparisonValue) -> String {
+        switch value {
+        case .missing: return "Not specified"
+        case .text(let text): return text.isEmpty ? "—" : text
+        case .number(let value, let unit):
+            let s = EngineeringNumberFormatter.string(value)
+            return unit.map { "\(s) \($0)" } ?? s
+        case .propertySeries(let series):
+            if let equation = series.equation { return equation.effectiveKind.rawValue }
+            if !series.temperatureTable.isEmpty { return "\(series.temperatureTable.count) temperature points" }
+            return "Reference value only"
+        }
+    }
+
+    private func differenceText(delta: Double, percentage: Double?, value: MaterialComparisonValue) -> String {
+        let sign = delta > 0 ? "+" : ""
+        let unit: String
+        if case .number(_, let u) = value, let u { unit = " \(u)" } else { unit = "" }
+        let base = "Δ \(sign)\(EngineeringNumberFormatter.string(delta))\(unit)"
+        guard let percentage else { return base }
+        return "\(base) (\(percentage > 0 ? "+" : "")\(EngineeringNumberFormatter.string(percentage))%)"
+    }
+
+    private struct ColumnWidths {
+        let property: CGFloat
+        let materials: [UUID: CGFloat]
+        func material(_ id: UUID) -> CGFloat { materials[id] ?? 150 }
+    }
+}
+
+private struct MacComparisonScrollOffsetReader: NSViewRepresentable {
+    @Binding var offsetX: CGFloat
+    func makeCoordinator() -> Coordinator { Coordinator(offsetX: $offsetX) }
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { context.coordinator.attach(from: view) }
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.offsetX = $offsetX
+        DispatchQueue.main.async { context.coordinator.attach(from: nsView) }
+    }
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) { coordinator.detach() }
+
+    final class Coordinator {
+        var offsetX: Binding<CGFloat>
+        weak var clipView: NSClipView?
+        var observer: NSObjectProtocol?
+        private var pendingOffset: CGFloat?
+        private var updateScheduled = false
+
+        init(offsetX: Binding<CGFloat>) { self.offsetX = offsetX }
+
+        func attach(from view: NSView) {
+            var current: NSView? = view
+            while let candidate = current, !(candidate is NSClipView) { current = candidate.superview }
+            guard let clip = current as? NSClipView, clip !== clipView else { return }
+            detach()
+            clipView = clip
+            clip.postsBoundsChangedNotifications = true
+            observer = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
+                self?.publish()
+            }
+            publish()
+        }
+
+        func publish() {
+            guard let clipView else { return }
+            pendingOffset = max(0, clipView.bounds.origin.x)
+            guard !updateScheduled else { return }
+            updateScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.updateScheduled = false
+                guard let newOffset = self.pendingOffset else { return }
+                self.pendingOffset = nil
+                if abs(self.offsetX.wrappedValue - newOffset) > 0.5 {
+                    self.offsetX.wrappedValue = newOffset
+                }
+            }
+        }
+
+        func detach() {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observer = nil
+            clipView = nil
+            pendingOffset = nil
+            updateScheduled = false
+        }
+        deinit { detach() }
+    }
+}
+#endif
