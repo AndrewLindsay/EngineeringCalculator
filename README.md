@@ -8,6 +8,8 @@ Active development branch: `feature/material-property-framework`
 
 The project is currently focused on the reusable Materials Library and temperature-dependent material-property framework before moving on to additional engineering calculators.
 
+> **Detailed handover / development roadmap:** See [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md). It records completed work, design decisions, test/checkpoint information, lessons from previous implementations, and the detailed development path ahead. Read it first when resuming the project after a break.
+
 ### Current working functionality
 
 - Shared engineering material model used by calculators and the Materials Library.
@@ -22,12 +24,19 @@ The project is currently focused on the reusable Materials Library and temperatu
 - Native macOS/iOS Material Files interface for importing and exporting user, built-in, complete, and individual materials.
 - Safe import merge: imported data cannot become protected built-in data, UUID collisions are regenerated, and duplicate names receive an ` (Imported N)` suffix rather than overwriting existing materials.
 - Custom material UTTypes are registered for `.ecmaterial` and `.ecmaterials`.
+- Reusable multi-material comparison engine with explicit reference material, differences and engineering-aware equality.
+- Multi-material selector preserves selection order and marks the first selection with a green `R`, followed by `2`, `3`, `4…` badges.
+- macOS comparison opens in a native resizable/full-screen window.
+- macOS comparison grid automatically fills available width, supports user-resizable columns, freezes Property + Reference columns, and only enables horizontal scrolling when the table actually exceeds the viewport.
+- **Differences Only** and reference-material changes are supported in the comparison UI.
 
 ## Validation baseline
 
-**Current confirmed baseline: 33 tests passed, 0 failures** on macOS on 20 September 2026.
+**Earlier recorded automated baseline: 33 tests passed, 0 failures** on macOS on 20 September 2026.
 
-This comprises the existing pipe/calculation tests, the deterministic material resolver suite, and the portable material interchange tests. The portable-file suite covers single and multiple-material round trips, preservation of equation kinds and temperature tables, malformed/empty/unsupported files, duplicate UUID handling, duplicate-name handling, built-in flag removal, and single-material document validation.
+The user has subsequently confirmed that the complete current test suite passes and the project builds without errors. If the suite has grown beyond 33 tests, update the numeric baseline at the next formal validation checkpoint rather than assuming the older count is still current.
+
+The automated suite includes the existing pipe/calculation tests, deterministic material resolver tests, portable material interchange tests and material comparison tests. Portable-file tests cover single and multiple-material round trips, preservation of equation kinds and temperature tables, malformed/empty/unsupported files, duplicate UUID handling, duplicate-name handling, built-in flag removal, and single-material document validation.
 
 A manual end-to-end round trip has also been completed successfully through the native UI using `Relative Linear / TCR`: export to `.ecmaterial`, select through the native file picker, decode, merge, regenerate the duplicate UUID, rename the duplicate to `Relative Linear / TCR (Imported 2)`, and add it to My Materials.
 
@@ -40,7 +49,7 @@ The deterministic material tests use artificial values with simple analytical an
 
 ## Phase 1 — Portable material import/export — COMPLETE
 
-`MaterialPortableCodec` and the Material Files UI now provide:
+`MaterialPortableCodec` and the Material Files UI provide:
 
 - single-material JSON export;
 - user-library, built-in-library and complete-library export;
@@ -57,74 +66,84 @@ The deterministic material tests use artificial values with simple analytical an
 
 Built-in materials can deliberately be exported for independent checking. Exporting them does not modify the protected built-in library.
 
-## Phase 2 — Material Comparison & Reporting — NEXT
+## Phase 2 — Material Comparison & Reporting — IN PROGRESS
 
-The next major feature is a reusable comparison engine and reporting model. It must be independent of the SwiftUI presentation so the same comparison data can later drive on-screen tables, PDF reports, CSV/Excel-compatible output, printing and sharing/email.
+### 2.1 Comparison engine — COMPLETE
 
-### 2.1 Comparison engine
+The reusable comparison engine is independent of the SwiftUI presentation so the same comparison data can drive on-screen tables and future PDF/CSV/print/share outputs.
 
-- Compare two or more materials at once.
-- The first selected material is the reference/baseline.
-- Compare built-in and user/project-specific materials interchangeably.
-- Group comparison rows into identity/traceability, physical, thermal, mechanical, electrical and service-limit sections.
-- Represent missing properties explicitly rather than treating them as zero.
-- For numeric scalar properties calculate absolute difference and percentage difference against the reference where meaningful.
-- Use engineering-aware equality/tolerance rules rather than fragile formatted-string equality.
-- Preserve raw values/units separately from display formatting so reports and calculations use the source data.
+Implemented behaviour includes:
 
-### 2.2 Temperature-dependent property comparison
+- compare two or more materials;
+- first selected material initially becomes the reference;
+- reference can subsequently be changed;
+- built-in and user materials can be compared together;
+- grouped identity/traceability, physical, thermal, mechanical, electrical and service-limit rows;
+- explicit missing values;
+- numeric absolute and percentage differences where meaningful;
+- engineering-aware equality/tolerance rules;
+- structural comparison of temperature-dependent property definitions.
 
-For each temperature-dependent property compare both the resolved values and the underlying definition. Detect changes including:
+### 2.2 Comparison selection/reference workflow — COMPLETE
 
-- constant/scalar versus table versus equation;
-- equation kind (polynomial, linear-reference, relative-linear/TCR);
-- coefficients;
-- reference value and reference temperature;
-- tabulated temperature/value points;
-- valid minimum/maximum temperature;
-- extrapolation permission;
-- source/basis/traceability.
+- Multi-select remains open until the user presses **Compare (n)**.
+- First selection is shown with a green **R** badge.
+- Later selections are numbered `2`, `3`, `4…`.
+- Removing a selection renumbers the remaining materials.
+- New selections append to the end of the order.
+- Selection order is retained in the comparison.
+- Reference material can be changed from the comparison screen.
+- **All properties** / **Differences Only** behaviour is available.
 
-Two materials may therefore have the same value at one temperature but still be reported as having different property models.
+### 2.3 macOS comparison UI — COMPLETE / MANUALLY TESTED
 
-### 2.3 Comparison UI
+The current Mac implementation has been manually tested and should be treated as the comparison-UI baseline:
 
-- Multi-select two or more materials from the Materials Library.
-- Clearly identify/reorder the reference material.
-- Display properties as rows and materials as columns.
-- Highlight changed values while keeping identical values visually quiet.
-- Show absolute and percentage difference where applicable, e.g. `+273 kg/m³ (+3.48%)`.
-- Provide **All properties** and **Differences only** modes.
-- Remain usable on both macOS and iPhone; use horizontal scrolling or an adaptive presentation rather than shrinking engineering data excessively.
+- separate native resizable comparison window;
+- full-screen capable;
+- minimum usable window width;
+- grid expands to fill available width when only a few materials are compared;
+- user-resizable Property/material columns;
+- frozen Property and Reference columns;
+- opaque frozen cells so scrolling content does not show through;
+- section headings remain aligned while scrolling;
+- horizontal scrollbar appears only when the actual table width exceeds the viewport;
+- scrollbar disappears when the table fits again;
+- long/wrapped rows remain aligned.
 
-### 2.4 Report-ready output model
+See `DEVELOPMENT_STATUS.md` for implementation history and design lessons, including approaches that were tried and rejected.
 
-The comparison result must be structured independently of the view and contain enough information to generate formal engineering documentation. Planned report content:
+### 2.4 PDF comparison reporting — NEXT
 
-- title/date and optional project/report metadata;
-- material names, grade/designation, product form and condition;
-- reference material clearly identified;
-- grouped comparison table;
-- absolute and percentage differences;
-- source/basis/notes;
-- indication of changed temperature-dependent models;
-- optional expanded equation/table definitions;
-- optional evaluated comparison table/plot at selected temperatures.
+The immediate next development task is a report-ready comparison model followed by PDF generation.
 
-### 2.5 Export/share
+The PDF/report implementation should:
 
-After the comparison engine and UI are validated:
+- consume `MaterialComparison` directly rather than screenshotting the SwiftUI table;
+- clearly identify the reference material;
+- preserve material order;
+- support All Properties and Differences Only;
+- group engineering properties by section;
+- include values, units, absolute/percentage differences, missing values and traceability;
+- wrap long source/notes content;
+- support multi-page output;
+- provide deterministic, engineering-report-quality formatting;
+- be covered by automated report-model tests before the final UI export action is added.
 
-1. PDF report generation suitable for printing and inclusion in engineering reports.
-2. CSV export for Excel and independent checking.
-3. Native share sheet so generated reports can be saved to Files, AirDropped, emailed or passed to another application.
-4. Printing support through the native platform workflow.
+The detailed implementation sequence and acceptance criteria are in `DEVELOPMENT_STATUS.md`.
 
-PDF/report generation should consume the comparison model rather than scrape or screenshot the SwiftUI table.
+### 2.5–2.8 Planned comparison/reporting work
+
+After PDF reporting:
+
+1. Native print support reusing the report model/layout.
+2. CSV / Excel-compatible comparison export.
+3. Native share workflow for PDF/CSV files.
+4. Enhanced temperature-dependent comparison: expanded equations/tables, selected-temperature evaluation and common plots.
 
 ## Phase 3 — Debug validation materials and manual UI verification
 
-Expose the deterministic validation fixtures to Debug builds only and manually verify constant values, table interpolation/range warnings, polynomial and TCR evaluation/graphs, invalid temperatures, material/property switching, synchronized units/method/traceability, and compact iPhone/macOS layouts.
+Expose deterministic validation fixtures to Debug builds only and manually verify constant values, table interpolation/range warnings, polynomial and TCR evaluation/graphs, invalid temperatures, material/property switching, synchronized units/method/traceability, and compact iPhone/macOS layouts.
 
 ## Phase 4 — Materials Library regression/UI pass
 
@@ -136,7 +155,7 @@ Freeze/document the first public material schema, define migrations, add compati
 
 ## Phase 6 — Populate verified engineering materials
 
-Add traceable real engineering materials only after the framework/editor/interchange format is stable. Preserve source, standard/grade, product form, condition and applicability, and avoid implying excessive precision.
+Add traceable real engineering materials only after the framework/editor/interchange/reporting format is stable. Preserve source, standard/grade, product form, condition and applicability, and avoid implying excessive precision.
 
 ## Phase 7 — Continue modular calculator development
 
@@ -158,12 +177,13 @@ At the start of a development session:
 
 ```bash
 git pull
+git status
 git branch --show-current
 ```
 
 For the current work the branch should be `feature/material-property-framework`.
 
-Run the regression suite with **⌘U** before and after substantial changes. The current expected baseline is **33 tests passed, 0 failures**.
+Run the regression suite with **⌘U** before and after substantial changes.
 
 When a tested change is ready to commit manually:
 
@@ -174,4 +194,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-When resuming this project, read this README, confirm the 33-test regression suite is green, and continue with **Phase 2.1 — Comparison engine**.
+When resuming this project after a break, read **`DEVELOPMENT_STATUS.md` first**, confirm the full regression suite is green, smoke-test the comparison screen, and continue with **Phase 2.4 — PDF comparison reporting**.
