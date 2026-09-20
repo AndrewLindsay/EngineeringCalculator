@@ -15,8 +15,8 @@ final class MaterialComparisonTests: XCTestCase {
             category: "Validation",
             densityKgM3: density,
             thermalConductivityWMK: conductivity,
-            thermalConductivitySeries: conductivitySeries,
-            isBuiltIn: false
+            isBuiltIn: false,
+            thermalConductivitySeries: conductivitySeries
         )
     }
 
