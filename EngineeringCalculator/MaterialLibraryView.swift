@@ -10,6 +10,7 @@ struct MaterialLibraryView: View {
     @Environment(\.interfaceDensity) private var density
     @State private var showingNew = false
     @State private var showingMaterialFiles = false
+    @State private var showingComparison = false
     @State private var materialPendingDeletion: EngineeringMaterial?
     @State private var libraryFilter: MaterialLibraryFilter = .all
     @State private var selectedMaterialID: UUID?
@@ -44,6 +45,13 @@ struct MaterialLibraryView: View {
         }
         .toolbar {
             Button {
+                showingComparison = true
+            } label: {
+                Label("Compare Materials", systemImage: "rectangle.split.3x1")
+            }
+            .help("Compare two or more materials side by side")
+
+            Button {
                 showingMaterialFiles = true
             } label: {
                 Label("Material Files", systemImage: "square.and.arrow.up.on.square")
@@ -59,6 +67,10 @@ struct MaterialLibraryView: View {
         .sheet(isPresented: $showingNew) { NavigationStack { MaterialEditorView() } }
         .sheet(isPresented: $showingMaterialFiles) {
             MaterialImportExportView()
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showingComparison) {
+            MaterialComparisonView()
                 .environmentObject(store)
         }
         .confirmationDialog("Delete Material?", isPresented: Binding(get: { materialPendingDeletion != nil }, set: { if !$0 { materialPendingDeletion = nil } }), titleVisibility: .visible) {
@@ -147,43 +159,17 @@ struct MaterialEditorView: View {
     var body: some View { Form {
         Section("Identity") { LabeledContent("Name") { TextField("Name", text: $name) }; LabeledContent("Existing category") { Picker("Existing category", selection: $category) { ForEach(store.categories, id: \.self) { Text($0).tag($0) } }.labelsHidden() }; LabeledContent("Category") { TextField("Category", text: $category) }; LabeledContent("Grade / specification") { TextField("Grade", text: $grade) } }
         Section("Core Properties") { scalarField("Density", "kg/m³", $density); MaterialTemperaturePropertyEditor(title: "Thermal conductivity", unit: "W/(m·K)", draft: $conductivity); MaterialTemperaturePropertyEditor(title: "Specific heat capacity", unit: "J/(kg·K)", draft: $heatCapacity) }
-        Section { Toggle("Advanced properties", isOn: $advanced) }
-        if advanced {
-            Section("Mechanical") { MaterialTemperaturePropertyEditor(title: "Young's modulus", unit: "GPa", draft: $youngsModulus); MaterialTemperaturePropertyEditor(title: "Poisson's ratio", unit: "", draft: $poissonsRatio); MaterialTemperaturePropertyEditor(title: "Yield strength", unit: "MPa", draft: $yieldStrength); MaterialTemperaturePropertyEditor(title: "Ultimate tensile strength", unit: "MPa", draft: $ultimateTensileStrength); MaterialTemperaturePropertyEditor(title: "Shear modulus", unit: "GPa", draft: $shearModulus); scalarField("Compressive strength", "MPa", $compressiveStrength) }
-            Section("Extended Thermal") { MaterialTemperaturePropertyEditor(title: "Thermal expansion", unit: "µm/(m·K)", draft: $thermalExpansion); scalarField("Minimum service temperature", "°C", $minimumServiceTemperature); scalarField("Maximum service temperature", "°C", $maximumServiceTemperature) }
-            Section("Electrical") { MaterialTemperaturePropertyEditor(title: "Electrical resistivity", unit: "Ω·m", draft: $electricalResistivity) }
-        }
-        Section("Traceability") { TextField("Source / basis", text: $source, axis: .vertical).lineLimit(2...6); TextField("Notes", text: $notes, axis: .vertical).lineLimit(2...8) }
-    }.formStyle(.grouped).padding(.horizontal, 12).navigationTitle(existing == nil ? "New Material" : "Edit Material")
-        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save(); dismiss() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }.materialEditorSizing()
-#if os(macOS)
-        .background(MaterialEditorWindowConfigurator())
-#endif
-    }
+        DisclosureGroup("Advanced Properties", isExpanded: $advanced) { Section("Mechanical") { MaterialTemperaturePropertyEditor(title: "Young's modulus", unit: "GPa", draft: $youngsModulus); MaterialTemperaturePropertyEditor(title: "Poisson's ratio", unit: "", draft: $poissonsRatio); MaterialTemperaturePropertyEditor(title: "Yield strength", unit: "MPa", draft: $yieldStrength); MaterialTemperaturePropertyEditor(title: "Ultimate tensile strength", unit: "MPa", draft: $ultimateTensileStrength); MaterialTemperaturePropertyEditor(title: "Shear modulus", unit: "GPa", draft: $shearModulus); scalarField("Compressive strength", "MPa", $compressiveStrength) }; Section("Thermal") { MaterialTemperaturePropertyEditor(title: "Thermal expansion", unit: "µm/(m·K)", draft: $thermalExpansion); scalarField("Minimum service temperature", "°C", $minimumServiceTemperature); scalarField("Maximum service temperature", "°C", $maximumServiceTemperature) }; Section("Electrical") { MaterialTemperaturePropertyEditor(title: "Electrical resistivity", unit: "Ω·m", draft: $electricalResistivity) }; Section("Traceability") { LabeledContent("Source / Basis") { TextField("Source", text: $source) }; LabeledContent("Notes") { TextField("Notes", text: $notes) } } }
+    }.formStyle(.grouped).navigationTitle(existing == nil ? "New Material" : "Edit Material").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }.frame(minWidth: 580, minHeight: 600) }
 
-    private func scalarField(_ label: String, _ unit: String, _ text: Binding<String>) -> some View { LabeledContent(label) { HStack { TextField("Value", text: text).multilineTextAlignment(.trailing); Text(unit).foregroundStyle(.secondary) } } }
-    private static func text(_ value: Double?) -> String { EngineeringNumberFormatter.editableString(value) }
-    private func number(_ text: String) -> Double? { EngineeringNumberFormatter.parse(text) }
+    private func scalarField(_ title: String, _ unit: String, _ text: Binding<String>) -> some View { LabeledContent(title) { HStack { TextField("Value", text: text).multilineTextAlignment(.trailing).frame(maxWidth: 130); Text(unit).foregroundStyle(.secondary).frame(width: 72, alignment: .leading) } } }
+    private static func text(_ value: Double?) -> String { value.map { String($0) } ?? "" }
+    private static func number(_ text: String) -> Double? { Double(text.replacingOccurrences(of: ",", with: ".")) }
     private func save() {
-        let material = EngineeringMaterial(id: existing?.id ?? UUID(), name: name.trimmingCharacters(in: .whitespacesAndNewlines), category: store.canonicalCategory(category), densityKgM3: number(density), grade: grade.isEmpty ? nil : grade,
-            thermalConductivityWMK: conductivity.scalarValue, specificHeatCapacityJkgK: heatCapacity.scalarValue, thermalExpansionMicrostrainPerK: thermalExpansion.scalarValue, minimumServiceTemperatureC: number(minimumServiceTemperature), maximumServiceTemperatureC: number(maximumServiceTemperature), youngsModulusGPa: youngsModulus.scalarValue, poissonsRatio: poissonsRatio.scalarValue, yieldStrengthMPa: yieldStrength.scalarValue, ultimateTensileStrengthMPa: ultimateTensileStrength.scalarValue, shearModulusGPa: shearModulus.scalarValue, compressiveStrengthMPa: number(compressiveStrength), electricalResistivityOhmM: electricalResistivity.scalarValue, source: source.isEmpty ? nil : source, notes: notes.isEmpty ? nil : notes, unsDesignation: existing?.unsDesignation, standardDesignation: existing?.standardDesignation, productForm: existing?.productForm, materialCondition: existing?.materialCondition, smysMPa: existing?.smysMPa, smtsMPa: existing?.smtsMPa,
-            thermalConductivitySeries: conductivity.makeSeries(), specificHeatCapacitySeries: heatCapacity.makeSeries(), thermalExpansionSeries: thermalExpansion.makeSeries(), youngsModulusSeries: youngsModulus.makeSeries(), poissonsRatioSeries: poissonsRatio.makeSeries(), yieldStrengthSeries: yieldStrength.makeSeries(), ultimateTensileStrengthSeries: ultimateTensileStrength.makeSeries(), shearModulusSeries: shearModulus.makeSeries(), electricalResistivitySeries: electricalResistivity.makeSeries())
-        if existing == nil { store.add(material) } else { store.update(material) }
+        let conductivityData = conductivity.makeSeries(); let heatCapacityData = heatCapacity.makeSeries(); let thermalExpansionData = thermalExpansion.makeSeries(); let youngsData = youngsModulus.makeSeries(); let poissonData = poissonsRatio.makeSeries(); let yieldData = yieldStrength.makeSeries(); let ultimateData = ultimateTensileStrength.makeSeries(); let shearData = shearModulus.makeSeries(); let resistivityData = electricalResistivity.makeSeries()
+        let material = EngineeringMaterial(id: existing?.id ?? UUID(), name: name.trimmingCharacters(in: .whitespacesAndNewlines), category: category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Other" : category.trimmingCharacters(in: .whitespacesAndNewlines), densityKgM3: Self.number(density), grade: grade.nilIfBlank, thermalConductivityWMK: conductivityData.fallback, specificHeatCapacityJkgK: heatCapacityData.fallback, thermalExpansionMicrostrainPerK: thermalExpansionData.fallback, minimumServiceTemperatureC: Self.number(minimumServiceTemperature), maximumServiceTemperatureC: Self.number(maximumServiceTemperature), youngsModulusGPa: youngsData.fallback, poissonsRatio: poissonData.fallback, yieldStrengthMPa: yieldData.fallback, ultimateTensileStrengthMPa: ultimateData.fallback, shearModulusGPa: shearData.fallback, compressiveStrengthMPa: Self.number(compressiveStrength), electricalResistivityOhmM: resistivityData.fallback, source: source.nilIfBlank, notes: notes.nilIfBlank, isBuiltIn: false, thermalConductivitySeries: conductivityData.series, specificHeatCapacitySeries: heatCapacityData.series, thermalExpansionSeries: thermalExpansionData.series, youngsModulusSeries: youngsData.series, poissonsRatioSeries: poissonData.series, yieldStrengthSeries: yieldData.series, ultimateTensileStrengthSeries: ultimateData.series, shearModulusSeries: shearData.series, electricalResistivitySeries: resistivityData.series)
+        if existing == nil { store.add(material) } else { store.update(material) }; dismiss()
     }
 }
 
-private extension View { @ViewBuilder func materialEditorSizing() -> some View {
-#if os(macOS)
-    self.frame(minWidth: 640, idealWidth: 760, maxWidth: .infinity, minHeight: 480, idealHeight: 760, maxHeight: .infinity)
-#else
-    self
-#endif
-} }
-
-#if os(macOS)
-private struct MaterialEditorWindowConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { let view = NSView(); DispatchQueue.main.async { configure(view.window) }; return view }
-    func updateNSView(_ nsView: NSView, context: Context) { DispatchQueue.main.async { configure(nsView.window) } }
-    private func configure(_ window: NSWindow?) { guard let window else { return }; window.styleMask.insert(.resizable); window.minSize = NSSize(width: 640, height: 480); window.contentMinSize = NSSize(width: 640, height: 480) }
-}
-#endif
+private extension String { var nilIfBlank: String? { let s = trimmingCharacters(in: .whitespacesAndNewlines); return s.isEmpty ? nil : s } }
