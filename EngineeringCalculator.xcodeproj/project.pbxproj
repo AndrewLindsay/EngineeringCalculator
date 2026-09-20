@@ -14,6 +14,7 @@
 		6F9E4EDE305F7F5A009583AE /* MaterialPortableDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */; };
 		6F9E4EE0305F8013009583AE /* MaterialImportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */; };
 		6F9E4EE3305F933B009583AE /* MaterialComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EE2305F933B009583AE /* MaterialComparison.swift */; };
+		6F9E4EE7305F96A4009583AE /* MaterialComparisonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */; };
 		A001 /* EngineeringCalculatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* EngineeringCalculatorApp.swift */; };
 		A002 /* CalculationDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* CalculationDefinition.swift */; };
 		A003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* HomeView.swift */; };
@@ -47,6 +48,7 @@
 		6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialImportExportView.swift; sourceTree = "<group>"; };
 		6F9E4EE1305F8F2B009583AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6F9E4EE2305F933B009583AE /* MaterialComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialComparison.swift; sourceTree = "<group>"; };
+		6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialComparisonTests.swift; sourceTree = "<group>"; };
 		F001 /* EngineeringCalculatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringCalculatorApp.swift; sourceTree = "<group>"; };
 		F002 /* CalculationDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDefinition.swift; sourceTree = "<group>"; };
 		F003 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -95,6 +97,7 @@
 		GAPP /* EngineeringCalculator */ = {
 			isa = PBXGroup;
 			children = (
+				6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */,
 				6F9E4EE2305F933B009583AE /* MaterialComparison.swift */,
 				6F9E4EE1305F8F2B009583AE /* Info.plist */,
 				6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */,
@@ -268,6 +271,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6F9E4EDC305F7DD3009583AE /* MaterialPortableFileTests.swift in Sources */,
+				6F9E4EE7305F96A4009583AE /* MaterialComparisonTests.swift in Sources */,
 				A006 /* PipeWeightBuoyancyCalculatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
