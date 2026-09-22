@@ -59,7 +59,7 @@ enum PipeHeatTransferSolverFailure: Error {
         case let .thermalConductivityUnavailable(materialName,t,status):
             switch status {
             case let .outsideAvailableRange(minimum,maximum):
-                return "\(materialName) does not provide thermal conductivity at \(t.formatted(.number.precision(.fractionLength(0...2)))) °C. Available tabulated range: \(minimum.formatted(.number.precision(.fractionLength(0...2))))–\(maximum.formatted(.number.precision(.fractionLength(0...2)))) °C. Calculation has been blocked rather than extrapolating material data."
+                return "\(materialName) requires thermal conductivity at \(t.formatted(.number.precision(.fractionLength(0...2)))) °C for its calculated physical location. Available tabulated range: \(minimum.formatted(.number.precision(.fractionLength(0...2))))–\(maximum.formatted(.number.precision(.fractionLength(0...2)))) °C. Calculation has been blocked rather than extrapolating material data."
             case let .outsideEquationRange(minimum,maximum):
                 let range:String
                 switch (minimum,maximum) {
@@ -68,18 +68,13 @@ enum PipeHeatTransferSolverFailure: Error {
                 case let (nil,b?): range="temperatures at or below \(b.formatted()) °C"
                 default: range="the defined equation range"
                 }
-                return "\(materialName) thermal conductivity cannot be evaluated at \(t.formatted(.number.precision(.fractionLength(0...2)))) °C; the correlation is valid for \(range). Calculation has been blocked rather than extrapolating material data."
-            case .missing:
-                return "\(materialName) does not define thermal conductivity."
-            case .temperatureRequired:
-                return "\(materialName) thermal conductivity requires a temperature."
-            case .resolved:
-                return "\(materialName) thermal conductivity could not be resolved at \(t.formatted()) °C."
+                return "\(materialName) thermal conductivity is required at \(t.formatted(.number.precision(.fractionLength(0...2)))) °C for its calculated physical location; the correlation is valid for \(range). Calculation has been blocked rather than extrapolating material data."
+            case .missing: return "\(materialName) does not define thermal conductivity."
+            case .temperatureRequired: return "\(materialName) thermal conductivity requires a temperature."
+            case .resolved: return "\(materialName) thermal conductivity could not be resolved at \(t.formatted()) °C."
             }
-        case let .invalidThermalConductivity(materialName,t):
-            return "\(materialName) returned an invalid thermal conductivity at \(t.formatted(.number.precision(.fractionLength(0...2)))) °C."
-        case .invalidGeometry:
-            return "The adaptive heat-transfer solution encountered invalid geometry or resistance data."
+        case let .invalidThermalConductivity(materialName,t): return "\(materialName) returned an invalid thermal conductivity at \(t.formatted(.number.precision(.fractionLength(0...2)))) °C."
+        case .invalidGeometry: return "The adaptive heat-transfer solution encountered invalid geometry or resistance data."
         }
     }
 }
@@ -100,9 +95,19 @@ enum PipeHeatTransferCalculator {
     static let maximumCellsPerPhysicalLayer = 4096
 
     static func propertyEvaluationTemperatureC(for input:PipeHeatTransferInput)->Double{(input.insideBoundaryTemperatureC+input.outsideBoundaryTemperatureC)/2}
+
+    // Heat-transfer range validity is location-dependent.  This preflight check therefore
+    // verifies only that conductivity data exist.  Actual temperature-range validity is
+    // checked by the adaptive solution at the temperatures experienced by each layer.
     static func validateMaterials(input:PipeHeatTransferInput)->PipeHeatTransferValidation{
-        let t=propertyEvaluationTemperatureC(for:input)
-        return PipeHeatTransferValidation(layers:input.layers.map{layer in PipeHeatTransferLayerValidation(id:layer.id,layerName:layer.name,materialName:layer.material.name,evaluationTemperatureC:t,result:MaterialRequirementValidator.validate(material:layer.material,against:requirements,calculationTemperatureC:t))})
+        let displayT=propertyEvaluationTemperatureC(for:input)
+        return PipeHeatTransferValidation(layers:input.layers.map{ layer in
+            let hasK=MaterialPropertyResolver.availableProperties(in:layer.material).contains(.thermalConductivity)
+            let issues:[MaterialValidationIssue]
+            if hasK { issues=[] }
+            else { issues=[.init(materialID:layer.material.id,materialName:layer.material.name,property:.thermalConductivity,severity:.error,reason:.missing,temperatureC:nil,purpose:"Radial heat conduction")] }
+            return .init(id:layer.id,layerName:layer.name,materialName:layer.material.name,evaluationTemperatureC:displayT,result:.init(requirementSetID:requirements.id,issues:issues))
+        })
     }
 
     private struct Cell { let layerIndex:Int; let innerRadius:Double; let outerRadius:Double; var meanTemperature:Double; var k:Double; var method:MaterialPropertyResolutionMethod?; var resistance:Double; var innerTemperature:Double; var outerTemperature:Double }
@@ -122,6 +127,30 @@ enum PipeHeatTransferCalculator {
         guard let k=r.value else { throw SolveFailure(failure:.thermalConductivityUnavailable(materialName:material.name,temperatureC:t,status:r.status)) }
         guard k>0,k.isFinite else { throw SolveFailure(failure:.invalidThermalConductivity(materialName:material.name,temperatureC:t)) }
         return r
+    }
+
+    // Bootstrap only: if the first global temperature estimate lies outside a material's
+    // data range, use the nearest valid endpoint to obtain an initial resistance.  This is
+    // not accepted as a final property evaluation; all subsequent iterations are strict.
+    private static func seedConductivity(_ material:EngineeringMaterial,at temperature:Double,input:PipeHeatTransferInput)throws->MaterialPropertyResolution {
+        let t=boundedPhysicalTemperature(temperature,input:input)
+        let initial=MaterialPropertyResolver.resolve(.thermalConductivity,in:material,atTemperatureC:t)
+        if initial.value != nil { return initial }
+        let boundedT:Double?
+        switch initial.status {
+        case let .outsideAvailableRange(minimum,maximum): boundedT=min(max(t,minimum),maximum)
+        case let .outsideEquationRange(minimum,maximum):
+            var candidate=t
+            if let minimum { candidate=max(candidate,minimum) }
+            if let maximum { candidate=min(candidate,maximum) }
+            boundedT=candidate
+        default: boundedT=nil
+        }
+        guard let boundedT else { throw SolveFailure(failure:.thermalConductivityUnavailable(materialName:material.name,temperatureC:t,status:initial.status)) }
+        let seeded=MaterialPropertyResolver.resolve(.thermalConductivity,in:material,atTemperatureC:boundedT)
+        guard let k=seeded.value else { throw SolveFailure(failure:.thermalConductivityUnavailable(materialName:material.name,temperatureC:t,status:initial.status)) }
+        guard k>0,k.isFinite else { throw SolveFailure(failure:.invalidThermalConductivity(materialName:material.name,temperatureC:boundedT)) }
+        return seeded
     }
 
     static func validatedCalculate(input:PipeHeatTransferInput)->ValidatedPipeHeatTransferResult{
@@ -167,7 +196,7 @@ enum PipeHeatTransferCalculator {
             let n=max(1,cellCounts[li]), r0=radius, r1=r0+layer.thicknessM; guard r0>0,r1>r0 else{throw SolveFailure(failure:.invalidGeometry)}
             for j in 0..<n {
                 let f0=Double(j)/Double(n), f1=Double(j+1)/Double(n), ri=r0*pow(r1/r0,f0), ro=r0*pow(r1/r0,f1)
-                let resolution=try conductivity(layer.material,at:globalMean,input:input), k=resolution.value!
+                let resolution=try seedConductivity(layer.material,at:globalMean,input:input), k=resolution.value!
                 cells.append(.init(layerIndex:li,innerRadius:ri,outerRadius:ro,meanTemperature:globalMean,k:k,method:resolution.method,resistance:log(ro/ri)/(2*Double.pi*k*input.lengthM),innerTemperature:globalMean,outerTemperature:globalMean))
             }; radius=r1
         }
@@ -182,10 +211,15 @@ enum PipeHeatTransferCalculator {
             }
             if let q0=lastQ,abs(q-q0)/max(abs(q),1e-12)<1e-9 && maxKChange<1e-9 {
                 let rr=cells.reduce(0){$0+$1.resistance}, qf=(input.insideBoundaryTemperatureC-input.outsideBoundaryTemperatureC)/rr; var tf=input.insideBoundaryTemperatureC
-                for i in cells.indices { let to=tf-qf*cells[i].resistance; cells[i].innerTemperature=tf;cells[i].outerTemperature=to;cells[i].meanTemperature=(tf+to)/2;tf=to }; return(cells,qf)
+                for i in cells.indices { let to=tf-qf*cells[i].resistance; cells[i].innerTemperature=tf;cells[i].outerTemperature=to;cells[i].meanTemperature=(tf+to)/2;tf=to }
+                // Final strict boundary check: a successful solution must not rely on extrapolation.
+                for cell in cells { let material=input.layers[cell.layerIndex].material; _=try conductivity(material,at:cell.innerTemperature,input:input); _=try conductivity(material,at:cell.outerTemperature,input:input) }
+                return(cells,qf)
             }; lastQ=q
         }
         let rr=cells.reduce(0){$0+$1.resistance}; guard rr>0 else{throw SolveFailure(failure:.invalidGeometry)}; let q=(input.insideBoundaryTemperatureC-input.outsideBoundaryTemperatureC)/rr; var t=input.insideBoundaryTemperatureC
-        for i in cells.indices{let to=t-q*cells[i].resistance;cells[i].innerTemperature=t;cells[i].outerTemperature=to;cells[i].meanTemperature=(t+to)/2;t=to}; return(cells,q)
+        for i in cells.indices{let to=t-q*cells[i].resistance;cells[i].innerTemperature=t;cells[i].outerTemperature=to;cells[i].meanTemperature=(t+to)/2;t=to}
+        for cell in cells { let material=input.layers[cell.layerIndex].material; _=try conductivity(material,at:cell.innerTemperature,input:input); _=try conductivity(material,at:cell.outerTemperature,input:input) }
+        return(cells,q)
     }
 }
