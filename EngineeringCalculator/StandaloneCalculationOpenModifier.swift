@@ -55,10 +55,19 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
             }
 
             let document = try CalculationDocumentFileIO.read(from: url)
-            let validated = try StandaloneCalculationOpenValidator.validatePipeWeightBuoyancy(document)
-            let calculation = validated.calculation
+            guard document.kind == .standaloneCalculation else {
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(
+                    expected: .standaloneCalculation,
+                    actualExtension: url.pathExtension
+                )
+            }
 
-            validationMessage = "\“\(calculation.name)\” was successfully opened and validated. \(document.embeddedMaterials.count) embedded material\(document.embeddedMaterials.count == 1 ? "" : "s") and \(calculation.inputs.count) calculation input\(calculation.inputs.count == 1 ? "" : "s") were found. No current inputs have been changed."
+            let restored = try PipeWeightBuoyancyPersistence.restore(from: document)
+            guard let calculation = document.calculations.first else {
+                throw PipeWeightBuoyancyPersistence.RestoreError.missingInput("calculation")
+            }
+
+            validationMessage = "\(calculation.name) was successfully opened and validated. \(document.embeddedMaterials.count) embedded material\(document.embeddedMaterials.count == 1 ? "" : "s") and \(calculation.inputs.count) calculation input\(calculation.inputs.count == 1 ? "" : "s") were found. \(restored.construction.layers.count) pipe layer\(restored.construction.layers.count == 1 ? "" : "s") were reconstructed. No current inputs have been changed."
         } catch {
             validationError = error.localizedDescription
         }
