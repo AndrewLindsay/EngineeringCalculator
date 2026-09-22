@@ -1,38 +1,22 @@
 import Foundation
 
-/// Versioning for the portable calculation document format.
-///
-/// `documentFormatVersion` changes only when the outer document representation changes.
-/// Individual calculator payloads are independently versioned by `calculatorSchemaVersion`.
 enum CalculationPersistenceSchema {
     static let documentFormatVersion = 1
     static let minimumReadableDocumentFormatVersion = 1
 }
 
-/// Stable machine-readable identifier for a persisted calculator input or output.
-/// Display labels are deliberately not used as identity so labels can change without
-/// breaking saved documents, project parameters or future calculation chaining.
 struct CalculationFieldID: RawRepresentable, Codable, Hashable, Sendable, ExpressibleByStringLiteral {
     let rawValue: String
-
     init(rawValue: String) { self.rawValue = rawValue }
     init(stringLiteral value: StringLiteralType) { self.rawValue = value }
 }
 
-/// Extensible source of an input value.
-///
-/// Version 1 writes literal values only, but the representation deliberately reserves
-/// stable cases for project parameters and calculation-output links so persistence does
-/// not need to be redesigned when those features are implemented.
 enum PersistedInputSource: Codable, Hashable, Sendable {
     case literal(PersistedValue)
     case projectParameter(UUID)
     case calculationOutput(calculationID: UUID, outputID: CalculationFieldID)
 }
 
-/// Type-safe, Codable engineering value used by portable calculations.
-/// New cases can be added through a document-format migration without reducing all
-/// engineering data to strings or untyped dictionaries.
 enum PersistedValue: Codable, Hashable, Sendable {
     case number(Double)
     case integer(Int)
@@ -43,86 +27,69 @@ enum PersistedValue: Codable, Hashable, Sendable {
     case strings([String])
 }
 
-/// A persisted input retains both machine identity and the user's selected/display unit.
-/// `displayName` is historical/reporting metadata only; `id` is the stable identity.
 struct SavedCalculationInput: Codable, Hashable, Identifiable, Sendable {
     let id: CalculationFieldID
     var displayName: String
     var source: PersistedInputSource
     var unitSymbol: String?
-
     init(id: CalculationFieldID, displayName: String, source: PersistedInputSource, unitSymbol: String? = nil) {
-        self.id = id
-        self.displayName = displayName
-        self.source = source
-        self.unitSymbol = unitSymbol
+        self.id = id; self.displayName = displayName; self.source = source; self.unitSymbol = unitSymbol
     }
 }
 
-/// A persisted output is a snapshot of the result at save time. Future recalculation may
-/// replace it, but the saved value remains available for audit/migration decisions.
 struct SavedCalculationOutput: Codable, Hashable, Identifiable, Sendable {
     let id: CalculationFieldID
     var displayName: String
     var value: PersistedValue
     var unitSymbol: String?
-
     init(id: CalculationFieldID, displayName: String, value: PersistedValue, unitSymbol: String? = nil) {
-        self.id = id
-        self.displayName = displayName
-        self.value = value
-        self.unitSymbol = unitSymbol
+        self.id = id; self.displayName = displayName; self.value = value; self.unitSymbol = unitSymbol
     }
 }
 
-enum SavedValidationSeverity: String, Codable, Hashable, Sendable {
-    case information
-    case warning
-    case error
-}
+enum SavedValidationSeverity: String, Codable, Hashable, Sendable { case information, warning, error }
 
-/// Validation messages are persisted because they form part of the engineering record.
 struct SavedValidationMessage: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     var severity: SavedValidationSeverity
     var code: String
     var message: String
-
     init(id: UUID = UUID(), severity: SavedValidationSeverity, code: String, message: String) {
-        self.id = id
-        self.severity = severity
-        self.code = code
-        self.message = message
+        self.id = id; self.severity = severity; self.code = code; self.message = message
     }
 }
 
 /// Complete material snapshot carried by a portable calculation document.
-///
-/// The full `EngineeringMaterial` is embedded rather than only the properties currently
-/// used by a calculator. This preserves scalar properties, temperature tables/equations,
-/// ranges, source/basis information and other material metadata for future recalculation
-/// and audit. The material UUID is preserved exactly across systems.
-///
-/// `contentFingerprint` is intentionally optional in format version 1. Canonical material
-/// fingerprinting is the next milestone; keeping the field now avoids changing the outer
-/// document shape when reconciliation is added.
+/// `contentFingerprint` describes engineering content independently of UUID/library status.
 struct EmbeddedMaterial: Codable, Hashable, Identifiable {
     var material: EngineeringMaterial
+    var fingerprintAlgorithm: String?
     var contentFingerprint: String?
-
     var id: UUID { material.id }
 
-    init(material: EngineeringMaterial, contentFingerprint: String? = nil) {
+    init(material: EngineeringMaterial, fingerprintAlgorithm: String? = nil, contentFingerprint: String? = nil) {
         self.material = material
+        self.fingerprintAlgorithm = fingerprintAlgorithm
         self.contentFingerprint = contentFingerprint
+    }
+
+    /// Preferred constructor for newly saved documents. Older version-1 documents may
+    /// legitimately contain no fingerprint and remain readable.
+    static func fingerprinted(_ material: EngineeringMaterial) throws -> EmbeddedMaterial {
+        EmbeddedMaterial(
+            material: material,
+            fingerprintAlgorithm: MaterialFingerprint.algorithmName,
+            contentFingerprint: try MaterialFingerprint.make(for: material)
+        )
+    }
+
+    /// Recomputes the fingerprint from the embedded definition. This is used instead of
+    /// blindly trusting the stored fingerprint when a document is opened/reconciled.
+    func verifiedFingerprint() throws -> String {
+        try MaterialFingerprint.make(for: material)
     }
 }
 
-/// Portable representation of one calculation.
-///
-/// `calculatorID` is the stable registry identity (for example `pipeWeightBuoyancy`).
-/// `calculatorSchemaVersion` belongs to that calculator and is independent of the outer
-/// document format version.
 struct SavedCalculation: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     var name: String
@@ -136,45 +103,19 @@ struct SavedCalculation: Codable, Hashable, Identifiable, Sendable {
     var validationMessages: [SavedValidationMessage]
     var notes: String?
 
-    init(
-        id: UUID = UUID(),
-        name: String,
-        calculatorID: String,
-        calculatorSchemaVersion: Int = 1,
-        createdAt: Date = Date(),
-        modifiedAt: Date = Date(),
-        inputs: [SavedCalculationInput] = [],
-        outputs: [SavedCalculationOutput] = [],
-        assumptions: [String] = [],
-        validationMessages: [SavedValidationMessage] = [],
-        notes: String? = nil
-    ) {
+    init(id: UUID = UUID(), name: String, calculatorID: String, calculatorSchemaVersion: Int = 1,
+         createdAt: Date = Date(), modifiedAt: Date = Date(), inputs: [SavedCalculationInput] = [],
+         outputs: [SavedCalculationOutput] = [], assumptions: [String] = [],
+         validationMessages: [SavedValidationMessage] = [], notes: String? = nil) {
         precondition(calculatorSchemaVersion > 0, "Calculator schema version must be positive")
-        self.id = id
-        self.name = name
-        self.calculatorID = calculatorID
-        self.calculatorSchemaVersion = calculatorSchemaVersion
-        self.createdAt = createdAt
-        self.modifiedAt = modifiedAt
-        self.inputs = inputs
-        self.outputs = outputs
-        self.assumptions = assumptions
-        self.validationMessages = validationMessages
-        self.notes = notes
+        self.id=id; self.name=name; self.calculatorID=calculatorID; self.calculatorSchemaVersion=calculatorSchemaVersion
+        self.createdAt=createdAt; self.modifiedAt=modifiedAt; self.inputs=inputs; self.outputs=outputs
+        self.assumptions=assumptions; self.validationMessages=validationMessages; self.notes=notes
     }
 }
 
-enum CalculationDocumentKind: String, Codable, Hashable, Sendable {
-    case standaloneCalculation
-    case project
-}
+enum CalculationDocumentKind: String, Codable, Hashable, Sendable { case standaloneCalculation, project }
 
-/// Version-1 portable calculation container.
-///
-/// Both standalone calculations and projects use one document shape. Materials are stored
-/// once at document scope and calculations refer to them by their persistent UUID in their
-/// calculator-specific inputs. This prevents projects from duplicating a complete material
-/// definition for every calculation that uses it.
 struct CalculationDocument: Codable, Hashable, Identifiable {
     let id: UUID
     let documentFormatVersion: Int
@@ -186,42 +127,20 @@ struct CalculationDocument: Codable, Hashable, Identifiable {
     var embeddedMaterials: [EmbeddedMaterial]
     var notes: String?
 
-    init(
-        id: UUID = UUID(),
-        documentFormatVersion: Int = CalculationPersistenceSchema.documentFormatVersion,
-        kind: CalculationDocumentKind,
-        title: String,
-        createdAt: Date = Date(),
-        modifiedAt: Date = Date(),
-        calculations: [SavedCalculation],
-        embeddedMaterials: [EmbeddedMaterial] = [],
-        notes: String? = nil
-    ) {
+    init(id: UUID = UUID(), documentFormatVersion: Int = CalculationPersistenceSchema.documentFormatVersion,
+         kind: CalculationDocumentKind, title: String, createdAt: Date = Date(), modifiedAt: Date = Date(),
+         calculations: [SavedCalculation], embeddedMaterials: [EmbeddedMaterial] = [], notes: String? = nil) {
         precondition(documentFormatVersion > 0, "Document format version must be positive")
-        self.id = id
-        self.documentFormatVersion = documentFormatVersion
-        self.kind = kind
-        self.title = title
-        self.createdAt = createdAt
-        self.modifiedAt = modifiedAt
-        self.calculations = calculations
-        self.embeddedMaterials = embeddedMaterials
-        self.notes = notes
+        self.id=id; self.documentFormatVersion=documentFormatVersion; self.kind=kind; self.title=title
+        self.createdAt=createdAt; self.modifiedAt=modifiedAt; self.calculations=calculations
+        self.embeddedMaterials=embeddedMaterials; self.notes=notes
     }
 
-    static func standalone(
-        _ calculation: SavedCalculation,
-        title: String? = nil,
-        embeddedMaterials: [EmbeddedMaterial] = []
-    ) -> CalculationDocument {
-        CalculationDocument(
-            kind: .standaloneCalculation,
-            title: title ?? calculation.name,
-            createdAt: calculation.createdAt,
-            modifiedAt: calculation.modifiedAt,
-            calculations: [calculation],
-            embeddedMaterials: embeddedMaterials
-        )
+    static func standalone(_ calculation: SavedCalculation, title: String? = nil,
+                           embeddedMaterials: [EmbeddedMaterial] = []) -> CalculationDocument {
+        CalculationDocument(kind: .standaloneCalculation, title: title ?? calculation.name,
+                            createdAt: calculation.createdAt, modifiedAt: calculation.modifiedAt,
+                            calculations: [calculation], embeddedMaterials: embeddedMaterials)
     }
 }
 
@@ -229,6 +148,7 @@ enum CalculationDocumentCodecError: Error, Equatable, LocalizedError {
     case unsupportedDocumentVersion(found: Int, supportedThrough: Int)
     case invalidStandaloneCalculationCount(Int)
     case duplicateEmbeddedMaterialID(UUID)
+    case embeddedMaterialFingerprintMismatch(UUID)
 
     var errorDescription: String? {
         switch self {
@@ -238,41 +158,29 @@ enum CalculationDocumentCodecError: Error, Equatable, LocalizedError {
             return "A standalone calculation document must contain exactly one calculation; found \(count)."
         case let .duplicateEmbeddedMaterialID(id):
             return "The calculation document contains more than one embedded material with UUID \(id.uuidString)."
+        case let .embeddedMaterialFingerprintMismatch(id):
+            return "The embedded definition for material UUID \(id.uuidString) does not match its stored fingerprint."
         }
     }
 }
 
-/// Centralised deterministic JSON codec for portable calculation documents.
-/// Keeping encoder/decoder policy here avoids file-format drift between macOS/iOS UI paths.
 enum CalculationDocumentCodec {
     static func encode(_ document: CalculationDocument, prettyPrinted: Bool = true) throws -> Data {
         try validate(document)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = prettyPrinted ? [.prettyPrinted, .sortedKeys] : [.sortedKeys]
         return try encoder.encode(document)
     }
 
     static func decode(_ data: Data) throws -> CalculationDocument {
-        // Decode a tiny envelope first so a future/newer document gets a deliberate
-        // compatibility error rather than a misleading generic decoding failure.
         let envelopeDecoder = JSONDecoder()
         let envelope = try envelopeDecoder.decode(VersionEnvelope.self, from: data)
-        guard envelope.documentFormatVersion <= CalculationPersistenceSchema.documentFormatVersion else {
-            throw CalculationDocumentCodecError.unsupportedDocumentVersion(
-                found: envelope.documentFormatVersion,
-                supportedThrough: CalculationPersistenceSchema.documentFormatVersion
-            )
+        guard envelope.documentFormatVersion <= CalculationPersistenceSchema.documentFormatVersion,
+              envelope.documentFormatVersion >= CalculationPersistenceSchema.minimumReadableDocumentFormatVersion else {
+            throw CalculationDocumentCodecError.unsupportedDocumentVersion(found: envelope.documentFormatVersion,
+                                                                             supportedThrough: CalculationPersistenceSchema.documentFormatVersion)
         }
-        guard envelope.documentFormatVersion >= CalculationPersistenceSchema.minimumReadableDocumentFormatVersion else {
-            throw CalculationDocumentCodecError.unsupportedDocumentVersion(
-                found: envelope.documentFormatVersion,
-                supportedThrough: CalculationPersistenceSchema.documentFormatVersion
-            )
-        }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         let document = try decoder.decode(CalculationDocument.self, from: data)
         try validate(document)
         return document
@@ -282,16 +190,19 @@ enum CalculationDocumentCodec {
         if document.kind == .standaloneCalculation, document.calculations.count != 1 {
             throw CalculationDocumentCodecError.invalidStandaloneCalculationCount(document.calculations.count)
         }
-
         var materialIDs = Set<UUID>()
         for embedded in document.embeddedMaterials {
             guard materialIDs.insert(embedded.id).inserted else {
                 throw CalculationDocumentCodecError.duplicateEmbeddedMaterialID(embedded.id)
             }
+            if let stored = embedded.contentFingerprint {
+                let verified = try embedded.verifiedFingerprint()
+                guard stored == verified else {
+                    throw CalculationDocumentCodecError.embeddedMaterialFingerprintMismatch(embedded.id)
+                }
+            }
         }
     }
 
-    private struct VersionEnvelope: Decodable {
-        let documentFormatVersion: Int
-    }
+    private struct VersionEnvelope: Decodable { let documentFormatVersion: Int }
 }
