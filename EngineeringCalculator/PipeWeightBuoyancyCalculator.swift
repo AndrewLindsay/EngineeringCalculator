@@ -39,6 +39,14 @@ struct PipeWeightMaterialValidation: Hashable {
     var canCalculate: Bool { errors.isEmpty }
 }
 
+/// Result of the safe calculation entry point. A caller cannot accidentally receive
+/// numerical results for a construction whose materials fail declared requirements.
+struct ValidatedPipeWeightBuoyancyResult {
+    let validation: PipeWeightMaterialValidation
+    let result: PipeWeightBuoyancyResult?
+    var canCalculate: Bool { validation.canCalculate }
+}
+
 enum PipeWeightBuoyancyCalculator {
     /// Pipe weight requires a valid density for every solid layer.
     static func validateMaterials(construction: PipeConstruction) -> PipeWeightMaterialValidation {
@@ -56,6 +64,22 @@ enum PipeWeightBuoyancyCalculator {
         return PipeWeightMaterialValidation(layers: validations)
     }
 
+    /// Preferred entry point for UI and new code. Validation is always performed first.
+    /// `result` is nil whenever a required material property is unavailable.
+    static func validatedCalculate(
+        construction: PipeConstruction,
+        gravity: Double = 9.80665
+    ) -> ValidatedPipeWeightBuoyancyResult {
+        let validation = validateMaterials(construction: construction)
+        guard validation.canCalculate else {
+            return ValidatedPipeWeightBuoyancyResult(validation: validation, result: nil)
+        }
+        return ValidatedPipeWeightBuoyancyResult(
+            validation: validation,
+            result: calculate(construction: construction, gravity: gravity)
+        )
+    }
+
     static func calculate(
         construction: PipeConstruction,
         gravity: Double = 9.80665
@@ -69,6 +93,8 @@ enum PipeWeightBuoyancyCalculator {
         )
     }
 
+    /// Legacy/raw calculation entry point retained for existing callers and numerical regression tests.
+    /// New material-aware callers should use `validatedCalculate(construction:)`.
     static func calculate(
         internalDiameterM: Double,
         layers: [PipeLayer],
