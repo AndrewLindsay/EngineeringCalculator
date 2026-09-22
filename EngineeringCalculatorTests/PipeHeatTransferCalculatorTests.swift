@@ -51,4 +51,29 @@ final class PipeHeatTransferCalculatorTests: XCTestCase {
         XCTAssertEqual(minimum,0.0)
         XCTAssertEqual(maximum,50.0)
     }
+
+    // Paired regression: identical geometry/materials/boundaries, only layer order changes.
+    // The 20–60 °C material is valid as the cold outer layer, but invalid on the hot side.
+    func testLimitedRangeOuterLayerSolvesAfterLocationAwareRefinement() throws {
+        let model=input(layers:[.init(name:"Constant inner",thicknessM:0.030,material:EngineeringMaterial(name:"TEST Constant Thermal k",category:"Validation",thermalConductivityWMK:1.0)),.init(name:"Limited outer",thicknessM:0.020,material:limited)],inside:120,outside:20)
+        let validated=PipeHeatTransferCalculator.validatedCalculate(input:model)
+        XCTAssertNil(validated.solverFailure)
+        let result=try XCTUnwrap(validated.result)
+        XCTAssertEqual(result.layers.count,2)
+        XCTAssertLessThanOrEqual(result.layers[1].innerBoundaryTemperatureC,60.0,accuracy:1e-6)
+        XCTAssertGreaterThanOrEqual(result.layers[1].outerBoundaryTemperatureC,20.0,accuracy:1e-6)
+        XCTAssertGreaterThanOrEqual(result.layers[1].computationalCellCount,2)
+    }
+
+    func testLimitedRangeInnerLayerFailsForSamePhysicalSystem() {
+        let model=input(layers:[.init(name:"Limited inner",thicknessM:0.020,material:limited),.init(name:"Constant outer",thicknessM:0.030,material:EngineeringMaterial(name:"TEST Constant Thermal k",category:"Validation",thermalConductivityWMK:1.0))],inside:120,outside:20)
+        let validated=PipeHeatTransferCalculator.validatedCalculate(input:model)
+        XCTAssertNil(validated.result)
+        guard case let .thermalConductivityUnavailable(name,t,status)?=validated.solverFailure else{return XCTFail("Expected local temperature-range failure")}
+        XCTAssertEqual(name,"TEST Limited k(T)")
+        XCTAssertGreaterThan(t,60.0)
+        guard case let .outsideAvailableRange(minimum,maximum)=status else{return XCTFail("Expected outsideAvailableRange")}
+        XCTAssertEqual(minimum,20.0)
+        XCTAssertEqual(maximum,60.0)
+    }
 }
