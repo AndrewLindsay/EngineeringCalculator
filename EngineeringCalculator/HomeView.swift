@@ -15,7 +15,7 @@ Text("Drag calculators to rearrange them. Your preferred order is saved on this 
 #if os(iOS)
 EditButton()
 #endif
-NavigationLink(value:"propertyInspector"){Image(systemName:"chart.xyaxis.line")}.help("Material property inspector");NavigationLink(value:"materials"){Image(systemName:"books.vertical")}.help("Material library");NavigationLink(value:"settings"){Image(systemName:"gearshape")}.help("Interface settings")}.navigationDestination(for:String.self){id in switch id{case "pipeWeightBuoyancy":PipeWeightBuoyancyView();case "propertyInspector":MaterialPropertyInspectorView();case "materials":MaterialLibraryView();case "settings":SettingsView();default:PlaceholderCalculatorView()}}}}
+NavigationLink(value:"propertyInspector"){Image(systemName:"chart.xyaxis.line")}.help("Material property inspector");NavigationLink(value:"materials"){Image(systemName:"books.vertical")}.help("Material library");NavigationLink(value:"settings"){Image(systemName:"gearshape")}.help("Interface settings")}.navigationDestination(for:String.self){id in switch id{case "pipeWeightBuoyancy":PipeWeightBuoyancyView();case "pipeHeatTransfer":PipeHeatTransferView();case "propertyInspector":MaterialPropertyInspectorView();case "materials":MaterialLibraryView();case "settings":SettingsView();default:PlaceholderCalculatorView()}}}}
     private func move(from source:IndexSet,to destination:Int){var items=orderedCalculations;items.move(fromOffsets:source,toOffset:destination);storedOrder=items.map(\.id).joined(separator:",")}
 }
 
@@ -30,34 +30,9 @@ struct MaterialPropertyInspectorView:View{
 .navigationBarTitleDisplayMode(.inline)
 #endif
 .onAppear{if selectedMaterialID==nil{selectedMaterialID=materials.first?.id}}}
-    @ViewBuilder
-    private func selectionPicker<Content: View>(
-        _ title: String,
-        value: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
+    @ViewBuilder private func selectionPicker<Content:View>(_ title:String,value:String,@ViewBuilder content:()->Content)->some View{
 #if os(iOS)
-        HStack(spacing: 12) {
-            Text(title)
-                .layoutPriority(1)
-
-            Spacer(minLength: 8)
-
-            Menu {
-                content()
-            } label: {
-                HStack(spacing: 5) {
-                    Text(value)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption2)
-                }
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: 230, alignment: .trailing)
-        }
+        HStack(spacing:12){Text(title).layoutPriority(1);Spacer(minLength:8);Menu{content()}label:{HStack(spacing:5){Text(value).lineLimit(1).truncationMode(.middle);Image(systemName:"chevron.up.chevron.down").font(.caption2)}.foregroundStyle(.secondary)}.frame(maxWidth:230,alignment:.trailing)}
 #else
         content()
 #endif
@@ -73,13 +48,5 @@ struct MaterialPropertyInspectorView:View{
 
 private struct PropertySeriesChart:View{let series:MaterialPropertySeries;let property:MaterialPropertyKind;let selectedTemperature:Double?;let selectedValue:Double?;private var curve:[InspectorGraphPoint]{if !series.temperatureTable.isEmpty{return series.temperatureTable.sorted{$0.temperatureC<$1.temperatureC}.map{InspectorGraphPoint(temperatureC:$0.temperatureC,value:$0.value)}};guard let e=series.equation else{return[]};let min=e.minimumTemperatureC ?? 0;let max=e.maximumTemperatureC ?? Swift.max(min+100,300);guard max>min else{return e.value(atTemperatureC:min).map{[InspectorGraphPoint(temperatureC:min,value:$0)]} ?? []};return(0...80).compactMap{i in let t=min+(max-min)*Double(i)/80;guard let v=e.value(atTemperatureC:t) else{return nil};return InspectorGraphPoint(temperatureC:t,value:v)}};var body:some View{Chart{ForEach(curve){p in LineMark(x:.value("Temperature",p.temperatureC),y:.value("Property value",p.value)).interpolationMethod(.linear)};ForEach(series.temperatureTable.sorted{$0.temperatureC<$1.temperatureC}){p in PointMark(x:.value("Temperature",p.temperatureC),y:.value("Tabulated value",p.value)).symbolSize(45)};if let t=selectedTemperature,let value=selectedValue{RuleMark(x:.value("Selected temperature",t)).lineStyle(StrokeStyle(lineWidth:1,dash:[4,4])).foregroundStyle(.secondary);PointMark(x:.value("Selected temperature",t),y:.value("Evaluated value",value)).symbolSize(100).annotation(position:.top,spacing:6){Text(property.unit.isEmpty ? engineeringNumber(value):"\(engineeringNumber(value)) \(property.unit)").font(.caption).monospacedDigit()}}}.chartXAxisLabel("Temperature (°C)").chartYAxisLabel(property.unit.isEmpty ? property.name:"\(property.name) (\(property.unit))").chartYAxis{AxisMarks(position:.trailing){value in AxisGridLine();AxisTick();AxisValueLabel{if let number=value.as(Double.self){Text(engineeringNumber(number))}}}}.frame(minHeight:240,idealHeight:300)}}
 private struct InspectorGraphPoint:Identifiable{let id=UUID();let temperatureC:Double;let value:Double}
-
-private func engineeringNumber(_ value:Double)->String{
-    guard value != 0 else{return "0"}
-    let magnitude=abs(value)
-    if magnitude>=0.001 && magnitude<1_000_000{return value.formatted(.number.precision(.significantDigits(1...6)))}
-    let exponent=Int(floor(log10(magnitude)/3.0))*3
-    let mantissa=value/pow(10.0,Double(exponent))
-    return "\(mantissa.formatted(.number.precision(.significantDigits(1...5))))×10\(superscript(exponent))"
-}
+private func engineeringNumber(_ value:Double)->String{guard value != 0 else{return "0"};let magnitude=abs(value);if magnitude>=0.001 && magnitude<1_000_000{return value.formatted(.number.precision(.significantDigits(1...6)))};let exponent=Int(floor(log10(magnitude)/3.0))*3;let mantissa=value/pow(10.0,Double(exponent));return "\(mantissa.formatted(.number.precision(.significantDigits(1...5))))×10\(superscript(exponent))"}
 private func superscript(_ value:Int)->String{let map:[Character:Character]=["-":"⁻","0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"];return String(String(value).compactMap{map[$0]})}
