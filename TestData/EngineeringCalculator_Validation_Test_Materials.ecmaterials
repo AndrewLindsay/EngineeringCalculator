@@ -1,0 +1,122 @@
+{
+  "format" : "EngineeringCalculatorMaterialLibrary",
+  "formatVersion" : 1,
+  "materials" : [
+    {
+      "id" : "10000000-0000-0000-0000-000000000001",
+      "name" : "TEST - Complete Engineering Material",
+      "category" : "Validation",
+      "densityKgM3" : 8000,
+      "thermalConductivityWMK" : 25,
+      "specificHeatCapacityJkgK" : 500,
+      "thermalExpansionMicrostrainPerK" : 12,
+      "youngsModulusGPa" : 200,
+      "poissonsRatio" : 0.30,
+      "yieldStrengthMPa" : 350,
+      "ultimateTensileStrengthMPa" : 500,
+      "shearModulusGPa" : 77,
+      "electricalResistivityOhmM" : 1.0e-7,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "Complete deterministic material. Values are synthetic and must not be used for design.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000002",
+      "name" : "TEST - Pipe Layer 1000 kg-m3",
+      "category" : "Validation",
+      "densityKgM3" : 1000,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "Density-only material for deterministic pipe mass tests.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000003",
+      "name" : "TEST - Pipe Layer 3000 kg-m3",
+      "category" : "Validation",
+      "densityKgM3" : 3000,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "Density-only material for deterministic pipe mass tests.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000004",
+      "name" : "TEST - Missing Density",
+      "category" : "Steel",
+      "thermalConductivityWMK" : 45,
+      "specificHeatCapacityJkgK" : 475,
+      "youngsModulusGPa" : 205,
+      "poissonsRatio" : 0.30,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "INTENTIONALLY INVALID for mass/weight calculations: density is absent.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000005",
+      "name" : "TEST - Missing Thermal Conductivity",
+      "category" : "Validation",
+      "densityKgM3" : 1200,
+      "specificHeatCapacityJkgK" : 1800,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "INTENTIONALLY INVALID for conduction calculations: thermal conductivity is absent.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000006",
+      "name" : "TEST - Missing Heat Capacity",
+      "category" : "Validation",
+      "densityKgM3" : 1100,
+      "thermalConductivityWMK" : 0.25,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "INTENTIONALLY INVALID for transient thermal calculations: specific heat capacity is absent.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000007",
+      "name" : "TEST - Thermal Table 0-100C",
+      "category" : "Validation",
+      "densityKgM3" : 1500,
+      "specificHeatCapacityJkgK" : 1000,
+      "thermalConductivitySeries" : {
+        "temperatureTable" : [
+          { "id" : "20000000-0000-0000-0000-000000000001", "temperatureC" : 0, "value" : 10 },
+          { "id" : "20000000-0000-0000-0000-000000000002", "temperatureC" : 50, "value" : 15 },
+          { "id" : "20000000-0000-0000-0000-000000000003", "temperatureC" : 100, "value" : 20 }
+        ],
+        "source" : "Synthetic Engineering Calculator validation fixture",
+        "basis" : "Linear table: k = 10, 15, 20 W/(m.K) at 0, 50, 100 C."
+      },
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "Use to test interpolation and out-of-range rejection.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000008",
+      "name" : "TEST - Linear Elastic Complete",
+      "category" : "Validation",
+      "densityKgM3" : 7800,
+      "youngsModulusGPa" : 210,
+      "poissonsRatio" : 0.30,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "Complete deterministic material for linear-elastic requirement tests.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000009",
+      "name" : "TEST - Missing Poissons Ratio",
+      "category" : "Validation",
+      "densityKgM3" : 7800,
+      "youngsModulusGPa" : 210,
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "INTENTIONALLY INVALID for linear-elastic calculations: Poisson's ratio is absent.",
+      "isBuiltIn" : false
+    },
+    {
+      "id" : "10000000-0000-0000-0000-000000000010",
+      "name" : "TEST - Empty Material",
+      "category" : "Validation",
+      "source" : "Synthetic Engineering Calculator validation fixture",
+      "notes" : "INTENTIONALLY EMPTY. Used to verify multiple missing-property diagnostics.",
+      "isBuiltIn" : false
+    }
+  ]
+}
