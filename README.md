@@ -4,62 +4,49 @@ A modular SwiftUI engineering-calculation app for iOS and macOS.
 
 > **Development agents/contributors:** Read `AGENTS.md` first, then `DEVELOPMENT_STATUS.md`. When the user says **refresh**, read both before continuing development.
 
-## Current development status — 22 September 2026
+## Current development status — HOLD POINT — 22 September 2026
 
-**Active branch:** `feature/material-requirement-validation`  
-**Current focus:** calculator/material integration and validated engineering calculations.
+**Active branch:** `feature/portable-calculation-documents`  
+**Current focus:** portable, self-contained calculation documents and project workspaces.  
+**Last user-verified automated checkpoint:** **168 tests passed, 0 failures**.
+
+Development is intentionally paused at a stable hold point. **When work resumes, start with the project workspace `.ecproject` end-to-end save/open/reopen workflow.** Do not restart from the old material-framework or 89-test checkpoint.
 
 ### Verified checkpoint
 
-The current formally verified checkpoint is **89 tests passed, 0 failures**.
-
-Completed and verified:
+Completed and verified through the current hold point:
 
 - shared Engineering Materials Library with built-in and user materials;
-- portable `.ecmaterial` / `.ecmaterials` import/export;
+- portable `.ecmaterial` / `.ecmaterials` material import/export;
 - temperature-dependent property resolver with constants, tables and equations;
-- reusable material comparison framework and macOS comparison UI;
-- central material-requirement/validation API;
-- required vs optional material properties;
-- temperature-aware property validation including validity/range handling;
-- standard requirement sets for mass, steady-state conduction, transient thermal and linear-elastic calculations;
-- portable synthetic validation library in `TestData/EngineeringCalculator_Validation_Test_Materials.ecmaterials`;
-- Pipe Weight & Buoyancy integrated with density validation;
-- invalid/missing density blocks results instead of silently becoming zero;
-- automated Pipe Weight material-validation regression tests;
-- Multilayer Pipe Heat Transfer integrated with the shared Materials Library and `validatedCalculate()`;
-- adaptive subdivision of temperature-dependent layers with convergence diagnostics;
-- physical-layer-aware thermal-conductivity range validation, so a limited-range material is accepted when its solved local layer temperatures are valid and blocked when they are not;
-- total resistance, heat rate, heat rate per length, UA and overall U on inside/outside area bases;
-- physical layer results including interface temperatures, effective/min/max conductivity, resistance and computational-cell count;
-- report-oriented interface-temperature chart with proportional physical-layer shading, interface markers and legend;
-- chart radial-build datum fixed at 0 mm on the internal pipe surface;
-- regression coverage for radial-build geometry and interface-temperature continuity.
+- reusable material comparison and material-requirement frameworks;
+- material-property validation that blocks calculations when required engineering data such as density or conductivity is unavailable;
+- Pipe Weight & Buoyancy and Multilayer Pipe Heat Transfer material-aware calculation integration;
+- versioned portable calculation persistence model with stable calculation/input/output identifiers;
+- complete embedded material definitions and canonical material fingerprinting;
+- material reconciliation/conflict handling without silently overwriting local materials;
+- deterministic portable calculation regression cases for reliable comparison between builds;
+- standalone `.eccalc` calculation save/export/open support;
+- Pipe Weight & Buoyancy standalone documents preserving multiple material layers across save/open;
+- portable regression coverage for Pipe Weight & Buoyancy and Pipe Heat Transfer;
+- project persistence/container work and project workspace UI foundations;
+- `.ecproject` Uniform Type Identifier added for project document import/export;
+- latest complete regression suite: **168/168 tests passing**.
 
-## Multilayer pipe heat transfer — VERIFIED
+## Resume here — exact next task
 
-The model implements steady-state radial conduction through concentric cylindrical layers:
+The next development task is to exercise and finish the **project workspace end-to-end document workflow**:
 
-`R_i = ln(r_o/r_i) / (2π k_i L)`
+1. Create a project containing multiple calculations.
+2. Include calculations/materials that exercise shared embedded-material handling.
+3. Save/export the project as `.ecproject`.
+4. Close/reopen/import the saved project.
+5. Verify every calculation, input, output, material reference and embedded material survives the round trip.
+6. Verify project embedded-material deduplication and historical calculation reproducibility.
+7. Add/fix automated regression tests for any behaviour exposed by this end-to-end exercise.
+8. Only after this workflow is verified should the project-document UI phase be considered complete and development move to robustness/schema-migration work or the deferred calculator roadmap.
 
-`Q = (T_inside - T_outside) / ΣR_i`
-
-Temperature-dependent conductivity is resolved adaptively. Thick or strongly temperature-dependent physical layers may be subdivided into computational cells until the conductivity/heat-rate solution converges. The UI continues to report physical engineering layers rather than exposing solver cells as separate coatings.
-
-Material property validity is checked against the solved temperature range of each physical layer. This allows, for example, a material with data only over a cold range to be used as an outer layer when that layer actually remains within the supported range.
-
-The temperature-profile chart uses radial build from the internal pipe surface as its horizontal coordinate. Physical layer widths therefore correspond directly to coating/pipe thicknesses, while the numerical layer table retains actual ID/OD values.
-
-## Immediate to-do list
-
-1. Treat **89/89 tests passing** as the current regression baseline.
-2. Perform a final macOS/iPhone visual regression of the heat-transfer calculator, including one-layer and multi-layer cases, light/dark mode and narrow-screen legend/layout behaviour.
-3. Decide whether `feature/material-requirement-validation` is ready to merge after the visual regression.
-4. Add inside/outside convection resistance and bulk-fluid/ambient boundary conditions as the next heat-transfer enhancement if desired.
-5. Consider an advanced temperature-profile view showing adaptive computational-cell temperatures while retaining physical layers as the normal/reporting view.
-6. Add report/export support for calculation inputs, material traceability, validation status, numerical results and the temperature-profile chart.
-7. Select the next material-aware calculation to exercise a different property set — transient thermal (`ρ`, `Cp`, `k`) or mechanical (`E`, `ν`) are the leading candidates.
-8. Continue the previously planned material-comparison PDF/print/CSV work when calculator/material integration is sufficiently mature.
+See `DEVELOPMENT_STATUS.md` for the detailed handover and architecture decisions.
 
 ## Material validation principle
 
@@ -68,6 +55,12 @@ Calculators must explicitly declare the material properties they require. Before
 New material-aware calculators should expose a safe `validatedCalculate()` entry point so callers cannot accidentally bypass validation.
 
 For temperature-dependent calculations, validity should be assessed against the temperatures actually experienced by each physical material where the solver can determine them, rather than rejecting a material solely because a global system temperature lies outside its range.
+
+## Portable document principle
+
+A transferred standalone calculation or project must be able to reproduce its saved engineering state without access to the originating material library. Embedded material definitions form part of the saved engineering record. Opening a historical document must not silently replace its embedded definition with a changed local-library definition.
+
+Standalone calculations use `.eccalc`; projects use `.ecproject`.
 
 ## Current pipe weight convention
 
@@ -81,7 +74,7 @@ with `g = 9.80665 m/s²`.
 
 ## Development workflow
 
-At the start of a session:
+At the start of the next session:
 
 ```bash
 git pull
@@ -92,10 +85,10 @@ git branch --show-current
 The current branch should be:
 
 ```text
-feature/material-requirement-validation
+feature/portable-calculation-documents
 ```
 
-Run the complete regression suite with **⌘U** before and after substantial changes. The current expected result is **89 tests passed, 0 failures**.
+Run the complete regression suite with **⌘U** before substantial new changes. The current expected result is **168 tests passed, 0 failures**.
 
 When a tested local change needs committing manually:
 
