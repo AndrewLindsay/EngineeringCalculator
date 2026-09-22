@@ -49,7 +49,7 @@ struct PipeHeatTransferValidation: Hashable {
     var canCalculate:Bool{errors.isEmpty}
 }
 
-enum PipeHeatTransferSolverFailure: Error, Hashable {
+enum PipeHeatTransferSolverFailure: Error {
     case thermalConductivityUnavailable(materialName:String, temperatureC:Double, status:MaterialPropertyResolutionStatus)
     case invalidThermalConductivity(materialName:String, temperatureC:Double)
     case invalidGeometry
