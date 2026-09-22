@@ -2,24 +2,15 @@ import Foundation
 import CryptoKit
 
 /// Canonical, versioned fingerprint for a complete engineering-material definition.
-///
-/// Identity (`EngineeringMaterial.id`) is deliberately excluded from the hash. The UUID
-/// answers "which logical material is this?" while the fingerprint answers "is the
-/// engineering definition identical?". `isBuiltIn` is also excluded because it is a
-/// local-library protection/status flag rather than engineering content.
-///
-/// The canonical payload is encoded with sorted JSON keys and SHA-256. If the canonical
-/// representation ever changes intentionally, increment `algorithmVersion` rather than
-/// silently changing the meaning of fingerprints already stored in portable documents.
+/// UUID/editor identity and local `isBuiltIn` status are deliberately excluded.
 enum MaterialFingerprint {
     static let algorithmVersion = 1
     static let algorithmName = "sha256-material-v1"
 
     static func make(for material: EngineeringMaterial) throws -> String {
-        let canonical = CanonicalMaterial(material)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        let data = try encoder.encode(canonical)
+        let data = try encoder.encode(CanonicalMaterial(material))
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
     }
@@ -53,6 +44,10 @@ enum MaterialFingerprint {
         var specificHeatCapacitySeries: CanonicalSeries?
         var thermalExpansionSeries: CanonicalSeries?
         var youngsModulusSeries: CanonicalSeries?
+        var poissonsRatioSeries: CanonicalSeries?
+        var yieldStrengthSeries: CanonicalSeries?
+        var ultimateTensileStrengthSeries: CanonicalSeries?
+        var shearModulusSeries: CanonicalSeries?
         var electricalResistivitySeries: CanonicalSeries?
 
         init(_ material: EngineeringMaterial) {
@@ -84,6 +79,10 @@ enum MaterialFingerprint {
             specificHeatCapacitySeries = material.specificHeatCapacitySeries.map(CanonicalSeries.init)
             thermalExpansionSeries = material.thermalExpansionSeries.map(CanonicalSeries.init)
             youngsModulusSeries = material.youngsModulusSeries.map(CanonicalSeries.init)
+            poissonsRatioSeries = material.poissonsRatioSeries.map(CanonicalSeries.init)
+            yieldStrengthSeries = material.yieldStrengthSeries.map(CanonicalSeries.init)
+            ultimateTensileStrengthSeries = material.ultimateTensileStrengthSeries.map(CanonicalSeries.init)
+            shearModulusSeries = material.shearModulusSeries.map(CanonicalSeries.init)
             electricalResistivitySeries = material.electricalResistivitySeries.map(CanonicalSeries.init)
         }
     }
@@ -99,8 +98,6 @@ enum MaterialFingerprint {
         init(_ series: MaterialPropertySeries) {
             referenceValue = series.referenceValue
             referenceTemperatureC = series.referenceTemperatureC
-            // Point UUIDs are editor identity, not engineering content. Preserve the
-            // engineering order because interpolation tables can legitimately depend on it.
             temperatureTable = series.temperatureTable.map { CanonicalPoint(temperatureC: $0.temperatureC, value: $0.value) }
             equation = series.equation.map(CanonicalEquation.init)
             source = series.source
@@ -114,16 +111,24 @@ enum MaterialFingerprint {
     }
 
     private struct CanonicalEquation: Codable {
+        var a: Double
+        var b: Double
+        var c: Double
+        var d: Double
         var minimumTemperatureC: Double?
         var maximumTemperatureC: Double?
         var allowsExtrapolation: Bool
-        var kind: MaterialPropertyEquationKind?
+        var kind: MaterialEquationKind?
         var referenceValue: Double?
         var referenceTemperatureC: Double?
         var slope: Double?
         var temperatureCoefficient: Double?
 
         init(_ equation: MaterialPropertyEquation) {
+            a = equation.a
+            b = equation.b
+            c = equation.c
+            d = equation.d
             minimumTemperatureC = equation.minimumTemperatureC
             maximumTemperatureC = equation.maximumTemperatureC
             allowsExtrapolation = equation.allowsExtrapolation
