@@ -34,8 +34,14 @@ enum MaterialPropertyResolver {
 
 enum MaterialRequirementLevel: String, Codable, Hashable { case required, optional }
 struct MaterialPropertyRequirement: Hashable, Codable, Identifiable {
-    var property: MaterialPropertyKind; var level: MaterialRequirementLevel; var temperatureC: Double?; var purpose: String?
-    var id: String { "\(property.rawValue)-\(level.rawValue)-\(temperatureC.map(String.init) ?? "calculation")" }
+    var property: MaterialPropertyKind
+    var level: MaterialRequirementLevel
+    var temperatureC: Double?
+    var purpose: String?
+    var id: String {
+        let temperatureIdentifier = temperatureC.map { String($0) } ?? "calculation"
+        return "\(property.rawValue)-\(level.rawValue)-\(temperatureIdentifier)"
+    }
     init(_ property: MaterialPropertyKind, level: MaterialRequirementLevel = .required, temperatureC: Double? = nil, purpose: String? = nil) { self.property=property; self.level=level; self.temperatureC=temperatureC; self.purpose=purpose }
 }
 struct MaterialRequirementSet: Hashable, Codable, Identifiable { var id:String; var name:String; var requirements:[MaterialPropertyRequirement] }
