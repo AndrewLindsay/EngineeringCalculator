@@ -5,6 +5,7 @@ struct PipeWeightBuoyancyView: View {
     @State private var diameterMode: DiameterMode = .diameter
     @State private var insideValueMM = 300.0
     @State private var selectedPipeMaterialID: UUID?
+    @State private var openedPipeMaterial: EngineeringMaterial?
     @State private var wallThicknessMM = 20.0
     @State private var internalDensity = 1000.0
     @State private var externalDensity = 1025.0
@@ -33,11 +34,11 @@ struct PipeWeightBuoyancyView: View {
     }
 
     private var pipeMaterial: EngineeringMaterial? {
-        if let id = selectedPipeMaterialID,
-           let found = materialStore.steelMaterials.first(where: { $0.id == id }) {
-            return found
+        if let id = selectedPipeMaterialID {
+            if let openedPipeMaterial, openedPipeMaterial.id == id { return openedPipeMaterial }
+            if let found = materialStore.steelMaterials.first(where: { $0.id == id }) { return found }
         }
-        return materialStore.steelMaterials.first
+        return openedPipeMaterial ?? materialStore.steelMaterials.first
     }
 
     private var internalDiameterM: Double {
@@ -47,14 +48,12 @@ struct PipeWeightBuoyancyView: View {
 
     private var layers: [PipeLayer] {
         let steel = pipeMaterial ?? EngineeringMaterial(name: "Carbon Steel", category: "Steel", densityKgM3: 7850)
-        var output = [
-            PipeLayer(
-                id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
-                name: steel.name,
-                thicknessM: max(0, wallThicknessMM) / 1000,
-                material: steel
-            )
-        ]
+        var output = [PipeLayer(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            name: steel.name,
+            thicknessM: max(0, wallThicknessMM) / 1000,
+            material: steel
+        )]
         output += extraLayers.map {
             PipeLayer(id: $0.id, name: $0.material.name, thicknessM: max(0, $0.thicknessMM) / 1000, material: $0.material)
         }
@@ -108,7 +107,9 @@ struct PipeWeightBuoyancyView: View {
                 .disabled(result == nil)
             }
         }
-        .standaloneCalculationOpenValidation()
+        .standaloneCalculationOpen { document in
+            try loadStandaloneCalculation(document)
+        }
         .onAppear { initialisePipeMaterialSelection() }
         .onChange(of: materialStore.steelMaterials.map(\.id)) { _, _ in initialisePipeMaterialSelection() }
         .sheet(isPresented: $showingAddLayer) {
@@ -137,6 +138,35 @@ struct PipeWeightBuoyancyView: View {
         }
     }
 
+    private func loadStandaloneCalculation(_ document: CalculationDocument) throws -> String {
+        let restored = try PipeWeightBuoyancyPersistence.restore(from: document)
+        let construction = restored.construction
+        guard let pipeLayer = construction.layers.first else {
+            throw PipeWeightBuoyancyPersistence.RestoreError.missingInput("layer.0")
+        }
+
+        let recalculated = PipeWeightBuoyancyCalculator.calculate(construction: construction)
+        let differences = PipeWeightBuoyancyPersistence.compareStoredOutputs(restored.storedOutputs, with: recalculated)
+
+        diameterMode = .diameter
+        insideValueMM = construction.internalDiameterM * 1000
+        openedPipeMaterial = pipeLayer.material
+        selectedPipeMaterialID = pipeLayer.material.id
+        wallThicknessMM = pipeLayer.thicknessM * 1000
+        extraLayers = construction.layers.dropFirst().map {
+            EditableLayer(id: $0.id, material: $0.material, thicknessMM: $0.thicknessM * 1000)
+        }
+        internalDensity = construction.internalFluid.densityKgM3
+        externalDensity = construction.externalFluid.densityKgM3
+
+        let name = document.calculations.first?.name ?? document.title
+        let layerText = "\(construction.layers.count) pipe layer\(construction.layers.count == 1 ? "" : "s")"
+        if differences.isEmpty {
+            return "\(name) was opened successfully. \(layerText) were restored and the recalculated outputs match the stored results. Embedded material snapshots are being used for this calculation and were not added to the Material Library."
+        }
+        return "\(name) was opened and \(layerText) were restored. Warning: \(differences.count) recalculated output\(differences.count == 1 ? "" : "s") differ from the stored results. Embedded material snapshots are being used for this calculation and were not added to the Material Library."
+    }
+
     private func saveStandaloneCalculation() {
         guard let result else { return }
         do {
@@ -155,38 +185,31 @@ struct PipeWeightBuoyancyView: View {
     @ViewBuilder private var pipeGeometrySection: some View {
         Section("Pipe Geometry") {
             Picker("Inside dimension", selection: $diameterMode) {
-                ForEach(DiameterMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
+                ForEach(DiameterMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
             }
-
-            numericField(
-                diameterMode == .diameter ? "Internal Diameter (mm)" : "Internal Radius (mm)",
-                value: $insideValueMM
-            )
-
-            Picker(
-                "Pipe material",
-                selection: Binding(
-                    get: { selectedPipeMaterialID ?? pipeMaterial?.id },
-                    set: { selectedPipeMaterialID = $0 }
-                )
-            ) {
+            numericField(diameterMode == .diameter ? "Internal Diameter (mm)" : "Internal Radius (mm)", value: $insideValueMM)
+            Picker("Pipe material", selection: Binding(
+                get: { selectedPipeMaterialID ?? pipeMaterial?.id },
+                set: { newID in
+                    selectedPipeMaterialID = newID
+                    if newID != openedPipeMaterial?.id { openedPipeMaterial = nil }
+                }
+            )) {
+                if let openedPipeMaterial,
+                   !materialStore.steelMaterials.contains(where: { $0.id == openedPipeMaterial.id }) {
+                    Text("\(openedPipeMaterial.name) (embedded)").tag(Optional(openedPipeMaterial.id))
+                }
                 ForEach(materialStore.steelMaterials) { material in
                     Text(material.name).tag(Optional(material.id))
                 }
             }
-
             LabeledContent("Pipe density") {
                 if let density = pipeMaterial?.densityKgM3 {
-                    Text("\(density, format: .number.precision(.fractionLength(0))) kg/m³")
-                        .foregroundStyle(.secondary)
+                    Text("\(density, format: .number.precision(.fractionLength(0))) kg/m³").foregroundStyle(.secondary)
                 } else {
-                    Label("Missing", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
+                    Label("Missing", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 }
             }
-
             numericField("Pipe wall thickness (mm)", value: $wallThicknessMM)
         }
     }
@@ -197,136 +220,76 @@ struct PipeWeightBuoyancyView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         VStack(alignment: .leading) {
-                            Text(layer.material.name)
-                                .font(.headline)
-
+                            Text(layer.material.name).font(.headline)
                             if let density = layer.material.densityKgM3 {
-                                Text("\(density, format: .number.precision(.fractionLength(0))) kg/m³")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                Text("\(density, format: .number.precision(.fractionLength(0))) kg/m³").font(.caption).foregroundStyle(.secondary)
                             } else {
-                                Label("Density missing", systemImage: "exclamationmark.triangle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
+                                Label("Density missing", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.red)
                             }
                         }
-
                         Spacer()
-
-                        Button(role: .destructive) {
-                            deleteLayer(id: layer.id)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
+                        Button(role: .destructive) { deleteLayer(id: layer.id) } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
                     }
-
                     numericField("Thickness (mm)", value: $layer.thicknessMM)
-
                     HStack {
-                        Button {
-                            moveLayer(id: layer.id, offset: -1)
-                        } label: {
-                            Label("Move Up", systemImage: "arrow.up")
-                        }
-                        .disabled(isFirst(layer.id))
-
-                        Button {
-                            moveLayer(id: layer.id, offset: 1)
-                        } label: {
-                            Label("Move Down", systemImage: "arrow.down")
-                        }
-                        .disabled(isLast(layer.id))
+                        Button { moveLayer(id: layer.id, offset: -1) } label: { Label("Move Up", systemImage: "arrow.up") }
+                            .disabled(isFirst(layer.id))
+                        Button { moveLayer(id: layer.id, offset: 1) } label: { Label("Move Down", systemImage: "arrow.down") }
+                            .disabled(isLast(layer.id))
                     }
                     .buttonStyle(.borderless)
                 }
                 .padding(.vertical, 5)
             }
-
-            Button { showingAddLayer = true } label: {
-                Label("Add Layer", systemImage: "plus")
-            }
+            Button { showingAddLayer = true } label: { Label("Add Layer", systemImage: "plus") }
         }
     }
 
     @ViewBuilder private var materialRequirementsSection: some View {
         if !materialValidation.canCalculate {
             Section("Material Data Required") {
-                ForEach(materialValidation.issues) { issue in
-                    materialIssueRow(issue)
-                }
-
+                ForEach(materialValidation.issues) { issue in materialIssueRow(issue) }
                 Text("Every solid layer requires density before this calculation can run. Edit the material in the Material Library or choose another material.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
             }
         } else {
             Section {
                 Text("Choose layer materials from the Material Library. Every solid layer requires density. Invalid materials may be added for validation testing, but results are blocked until all required properties are available.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
     private func materialIssueRow(_ issue: MaterialValidationIssue) -> some View {
         let isBlocking = issue.severity == .error
-
         return Label {
             Text(issue.message)
         } icon: {
-            Image(
-                systemName: isBlocking
-                    ? "exclamationmark.triangle.fill"
-                    : "exclamationmark.circle"
-            )
+            Image(systemName: isBlocking ? "exclamationmark.triangle.fill" : "exclamationmark.circle")
         }
         .foregroundStyle(isBlocking ? Color.red : Color.orange)
     }
 
     private var layerTable: some View {
-        ViewThatFits(in: .horizontal) {
-            detailedLayerGrid
-            compactLayerList
-        }
+        ViewThatFits(in: .horizontal) { detailedLayerGrid; compactLayerList }
     }
 
     private var detailedLayerGrid: some View {
         Grid(alignment: .trailing, horizontalSpacing: 5) {
             GridRow {
-                Text("#")
-                Text("Layer").frame(minWidth: 90, alignment: .leading)
-                Text("ID\n(mm)")
-                Text("t\n(mm)")
-                Text("OD\n(mm)")
-                Text("Density\n(kg/m³)")
-                Text("Area\n(m²)")
-                Text("Mass\n(kg/m)")
+                Text("#"); Text("Layer").frame(minWidth: 90, alignment: .leading); Text("ID\n(mm)"); Text("t\n(mm)"); Text("OD\n(mm)"); Text("Density\n(kg/m³)"); Text("Area\n(m²)"); Text("Mass\n(kg/m)")
             }
-            .font(.caption2.bold())
-            .multilineTextAlignment(.center)
-
+            .font(.caption2.bold()).multilineTextAlignment(.center)
             Divider().gridCellColumns(8)
-
             if let result {
                 ForEach(Array(result.layers.enumerated()), id: \.element.id) { index, layer in
                     GridRow {
-                        Text("\(index + 1)")
-                        Text(layer.name).frame(minWidth: 90, alignment: .leading)
-                        tableNumber(layer.innerDiameterM * 1000, digits: 2)
-                        tableNumber(layer.thicknessM * 1000, digits: 2)
-                        tableNumber(layer.outerDiameterM * 1000, digits: 2)
-                        tableNumber(layer.densityKgM3, digits: 0)
-                        tableNumber(layer.areaM2, digits: 5)
-                        tableNumber(layer.massKgPerM, digits: 2)
+                        Text("\(index + 1)"); Text(layer.name).frame(minWidth: 90, alignment: .leading); tableNumber(layer.innerDiameterM * 1000, digits: 2); tableNumber(layer.thicknessM * 1000, digits: 2); tableNumber(layer.outerDiameterM * 1000, digits: 2); tableNumber(layer.densityKgM3, digits: 0); tableNumber(layer.areaM2, digits: 5); tableNumber(layer.massKgPerM, digits: 2)
                     }
                 }
             } else {
-                GridRow {
-                    Text("Calculation unavailable")
-                        .foregroundStyle(.secondary)
-                        .gridCellColumns(8)
-                }
+                GridRow { Text("Calculation unavailable").foregroundStyle(.secondary).gridCellColumns(8) }
             }
         }
         .font(.caption2)
@@ -336,11 +299,8 @@ struct PipeWeightBuoyancyView: View {
         VStack(spacing: 6) {
             ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in
                 HStack {
-                    Text("\(index + 1). \(layer.name)")
-                    Spacer()
-                    Text(layer.material.densityKgM3.map {
-                        $0.formatted(.number.precision(.fractionLength(0)))
-                    } ?? "Missing")
+                    Text("\(index + 1). \(layer.name)"); Spacer()
+                    Text(layer.material.densityKgM3.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "Missing")
                 }
             }
         }
@@ -356,48 +316,30 @@ struct PipeWeightBuoyancyView: View {
                 resultRow("Displaced external fluid", result.displacedMassKgPerM, "kg/m")
                 resultRow("Submerged equivalent mass", result.submergedEquivalentMassKgPerM, "kg/m")
                 resultRow("Submerged weight", result.submergedWeightKNPerM, "kN/m")
-                LabeledContent("Condition") {
-                    Text(result.submergedWeightKNPerM >= 0 ? "Sinks" : "Floats")
-                        .fontWeight(.semibold)
-                }
+                LabeledContent("Condition") { Text(result.submergedWeightKNPerM >= 0 ? "Sinks" : "Floats").fontWeight(.semibold) }
             } else {
-                Label("Results unavailable until all required material properties are present.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
+                Label("Results unavailable until all required material properties are present.", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
             }
         }
     }
 
     private func numericField(_ title: String, value: Binding<Double>) -> some View {
         LabeledContent(title) {
-            TextField(title, value: value, format: .number.precision(.fractionLength(0...4)))
-                .multilineTextAlignment(.trailing)
-                .frame(minWidth: 90)
+            TextField(title, value: value, format: .number.precision(.fractionLength(0...4))).multilineTextAlignment(.trailing).frame(minWidth: 90)
         }
     }
 
     private func resultRow(_ title: String, _ value: Double, _ unit: String) -> some View {
-        LabeledContent(title) {
-            Text("\(value, format: .number.precision(.fractionLength(3))) \(unit)")
-                .monospacedDigit()
-        }
+        LabeledContent(title) { Text("\(value, format: .number.precision(.fractionLength(3))) \(unit)").monospacedDigit() }
     }
 
     private func tableNumber(_ value: Double, digits: Int) -> Text {
         Text(value.formatted(.number.precision(.fractionLength(digits))))
     }
 
-    private func deleteLayer(id: UUID) {
-        extraLayers.removeAll { $0.id == id }
-    }
-
-    private func isFirst(_ id: UUID) -> Bool {
-        extraLayers.first?.id == id
-    }
-
-    private func isLast(_ id: UUID) -> Bool {
-        extraLayers.last?.id == id
-    }
-
+    private func deleteLayer(id: UUID) { extraLayers.removeAll { $0.id == id } }
+    private func isFirst(_ id: UUID) -> Bool { extraLayers.first?.id == id }
+    private func isLast(_ id: UUID) -> Bool { extraLayers.last?.id == id }
     private func moveLayer(id: UUID, offset: Int) {
         guard let index = extraLayers.firstIndex(where: { $0.id == id }) else { return }
         let destination = index + offset
@@ -406,15 +348,11 @@ struct PipeWeightBuoyancyView: View {
     }
 
     private func initialisePipeMaterialSelection() {
+        if let selectedPipeMaterialID, openedPipeMaterial?.id == selectedPipeMaterialID { return }
         let steels = materialStore.steelMaterials
-        guard !steels.isEmpty else {
-            selectedPipeMaterialID = nil
-            return
-        }
-        if let selectedPipeMaterialID,
-           steels.contains(where: { $0.id == selectedPipeMaterialID }) {
-            return
-        }
+        guard !steels.isEmpty else { selectedPipeMaterialID = nil; return }
+        if let selectedPipeMaterialID, steels.contains(where: { $0.id == selectedPipeMaterialID }) { return }
+        openedPipeMaterial = nil
         selectedPipeMaterialID = steels.first?.id
     }
 }
@@ -427,9 +365,7 @@ private struct AddPipeLayerView: View {
     @State private var showingNewMaterial = false
     let onAdd: (EngineeringMaterial, Double) -> Void
 
-    private var selectedMaterial: EngineeringMaterial? {
-        store.allMaterials.first { $0.id == selectedMaterialID }
-    }
+    private var selectedMaterial: EngineeringMaterial? { store.allMaterials.first { $0.id == selectedMaterialID } }
 
     var body: some View {
         Form {
@@ -438,62 +374,45 @@ private struct AddPipeLayerView: View {
                     Text("Select a material").tag(nil as UUID?)
                     ForEach(store.categories, id: \.self) { category in
                         Section(category) {
-                            ForEach(materials(in: category)) { material in
-                                Text(material.name).tag(Optional(material.id))
-                            }
+                            ForEach(materials(in: category)) { material in Text(material.name).tag(Optional(material.id)) }
                         }
                     }
                 }
-
                 if let material = selectedMaterial {
                     LabeledContent("Category") { Text(material.category) }
                     LabeledContent("Density") {
                         if let density = material.densityKgM3 {
                             Text("\(density.formatted()) kg/m³")
                         } else {
-                            Label("Missing — calculation will be blocked", systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.red)
+                            Label("Missing – calculation will be blocked", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
                         }
                     }
                 }
-
-                Button { showingNewMaterial = true } label: {
-                    Label("Create New Material…", systemImage: "plus")
-                }
+                Button { showingNewMaterial = true } label: { Label("Create New Material…", systemImage: "plus") }
             }
-
             Section("Layer") {
                 LabeledContent("Thickness (mm)") {
-                    TextField("Thickness", value: $thicknessMM, format: .number.precision(.fractionLength(0...4)))
-                        .multilineTextAlignment(.trailing)
+                    TextField("Thickness", value: $thicknessMM, format: .number.precision(.fractionLength(0...4))).multilineTextAlignment(.trailing)
                 }
             }
         }
         .navigationTitle("Add Layer")
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-            }
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Add") {
                     guard let material = selectedMaterial else { return }
-                    onAdd(material, max(0, thicknessMM))
-                    dismiss()
+                    onAdd(material, max(0, thicknessMM)); dismiss()
                 }
                 .disabled(selectedMaterial == nil)
             }
         }
         .sheet(isPresented: $showingNewMaterial) {
-            NavigationStack {
-                MaterialEditorView()
-                    .environmentObject(store)
-            }
+            NavigationStack { MaterialEditorView().environmentObject(store) }
         }
     }
 
     private func materials(in category: String) -> [EngineeringMaterial] {
-        store.allMaterials.filter {
-            $0.category.caseInsensitiveCompare(category) == .orderedSame
-        }
+        store.allMaterials.filter { $0.category.caseInsensitiveCompare(category) == .orderedSame }
     }
 }
