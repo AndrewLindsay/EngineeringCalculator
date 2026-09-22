@@ -96,6 +96,28 @@ struct SavedValidationMessage: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+/// Complete material snapshot carried by a portable calculation document.
+///
+/// The full `EngineeringMaterial` is embedded rather than only the properties currently
+/// used by a calculator. This preserves scalar properties, temperature tables/equations,
+/// ranges, source/basis information and other material metadata for future recalculation
+/// and audit. The material UUID is preserved exactly across systems.
+///
+/// `contentFingerprint` is intentionally optional in format version 1. Canonical material
+/// fingerprinting is the next milestone; keeping the field now avoids changing the outer
+/// document shape when reconciliation is added.
+struct EmbeddedMaterial: Codable, Hashable, Identifiable {
+    var material: EngineeringMaterial
+    var contentFingerprint: String?
+
+    var id: UUID { material.id }
+
+    init(material: EngineeringMaterial, contentFingerprint: String? = nil) {
+        self.material = material
+        self.contentFingerprint = contentFingerprint
+    }
+}
+
 /// Portable representation of one calculation.
 ///
 /// `calculatorID` is the stable registry identity (for example `pipeWeightBuoyancy`).
@@ -149,11 +171,11 @@ enum CalculationDocumentKind: String, Codable, Hashable, Sendable {
 
 /// Version-1 portable calculation container.
 ///
-/// The container supports one standalone calculation or multiple project calculations.
-/// Embedded materials are intentionally added in the next persistence milestone; the
-/// document model is separated from runtime calculator objects now so that addition is
-/// a format evolution rather than a calculator rewrite.
-struct CalculationDocument: Codable, Hashable, Identifiable, Sendable {
+/// Both standalone calculations and projects use one document shape. Materials are stored
+/// once at document scope and calculations refer to them by their persistent UUID in their
+/// calculator-specific inputs. This prevents projects from duplicating a complete material
+/// definition for every calculation that uses it.
+struct CalculationDocument: Codable, Hashable, Identifiable {
     let id: UUID
     let documentFormatVersion: Int
     var kind: CalculationDocumentKind
@@ -161,6 +183,7 @@ struct CalculationDocument: Codable, Hashable, Identifiable, Sendable {
     var createdAt: Date
     var modifiedAt: Date
     var calculations: [SavedCalculation]
+    var embeddedMaterials: [EmbeddedMaterial]
     var notes: String?
 
     init(
@@ -171,6 +194,7 @@ struct CalculationDocument: Codable, Hashable, Identifiable, Sendable {
         createdAt: Date = Date(),
         modifiedAt: Date = Date(),
         calculations: [SavedCalculation],
+        embeddedMaterials: [EmbeddedMaterial] = [],
         notes: String? = nil
     ) {
         precondition(documentFormatVersion > 0, "Document format version must be positive")
@@ -181,16 +205,22 @@ struct CalculationDocument: Codable, Hashable, Identifiable, Sendable {
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
         self.calculations = calculations
+        self.embeddedMaterials = embeddedMaterials
         self.notes = notes
     }
 
-    static func standalone(_ calculation: SavedCalculation, title: String? = nil) -> CalculationDocument {
+    static func standalone(
+        _ calculation: SavedCalculation,
+        title: String? = nil,
+        embeddedMaterials: [EmbeddedMaterial] = []
+    ) -> CalculationDocument {
         CalculationDocument(
             kind: .standaloneCalculation,
             title: title ?? calculation.name,
             createdAt: calculation.createdAt,
             modifiedAt: calculation.modifiedAt,
-            calculations: [calculation]
+            calculations: [calculation],
+            embeddedMaterials: embeddedMaterials
         )
     }
 }
@@ -198,6 +228,7 @@ struct CalculationDocument: Codable, Hashable, Identifiable, Sendable {
 enum CalculationDocumentCodecError: Error, Equatable, LocalizedError {
     case unsupportedDocumentVersion(found: Int, supportedThrough: Int)
     case invalidStandaloneCalculationCount(Int)
+    case duplicateEmbeddedMaterialID(UUID)
 
     var errorDescription: String? {
         switch self {
@@ -205,6 +236,8 @@ enum CalculationDocumentCodecError: Error, Equatable, LocalizedError {
             return "Calculation document version \(found) is newer than this app supports (through version \(supportedThrough))."
         case let .invalidStandaloneCalculationCount(count):
             return "A standalone calculation document must contain exactly one calculation; found \(count)."
+        case let .duplicateEmbeddedMaterialID(id):
+            return "The calculation document contains more than one embedded material with UUID \(id.uuidString)."
         }
     }
 }
@@ -248,6 +281,13 @@ enum CalculationDocumentCodec {
     private static func validate(_ document: CalculationDocument) throws {
         if document.kind == .standaloneCalculation, document.calculations.count != 1 {
             throw CalculationDocumentCodecError.invalidStandaloneCalculationCount(document.calculations.count)
+        }
+
+        var materialIDs = Set<UUID>()
+        for embedded in document.embeddedMaterials {
+            guard materialIDs.insert(embedded.id).inserted else {
+                throw CalculationDocumentCodecError.duplicateEmbeddedMaterialID(embedded.id)
+            }
         }
     }
 
