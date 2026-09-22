@@ -1,12 +1,15 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Reusable UI for opening and validating a portable standalone calculation.
-/// This phase deliberately does not mutate calculator state after validation.
+/// Reusable UI for opening a portable standalone calculation.
+/// File reading and generic document validation live here; each calculator owns
+/// the restoration of its own state and returns a user-facing success message.
 struct StandaloneCalculationOpenModifier: ViewModifier {
     @State private var showingImporter = false
     @State private var validationMessage: String?
     @State private var validationError: String?
+
+    let onOpen: (CalculationDocument) throws -> String
 
     func body(content: Content) -> some View {
         content
@@ -26,7 +29,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
             ) { result in
                 open(result)
             }
-            .alert("Calculation Validated", isPresented: Binding(
+            .alert("Calculation Opened", isPresented: Binding(
                 get: { validationMessage != nil },
                 set: { if !$0 { validationMessage = nil } }
             )) {
@@ -62,12 +65,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
                 )
             }
 
-            let restored = try PipeWeightBuoyancyPersistence.restore(from: document)
-            guard let calculation = document.calculations.first else {
-                throw PipeWeightBuoyancyPersistence.RestoreError.missingInput("calculation")
-            }
-
-            validationMessage = "\(calculation.name) was successfully opened and validated. \(document.embeddedMaterials.count) embedded material\(document.embeddedMaterials.count == 1 ? "" : "s") and \(calculation.inputs.count) calculation input\(calculation.inputs.count == 1 ? "" : "s") were found. \(restored.construction.layers.count) pipe layer\(restored.construction.layers.count == 1 ? "" : "s") were reconstructed. No current inputs have been changed."
+            validationMessage = try onOpen(document)
         } catch {
             validationError = error.localizedDescription
         }
@@ -75,7 +73,9 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
 }
 
 extension View {
-    func standaloneCalculationOpenValidation() -> some View {
-        modifier(StandaloneCalculationOpenModifier())
+    func standaloneCalculationOpen(
+        onOpen: @escaping (CalculationDocument) throws -> String
+    ) -> some View {
+        modifier(StandaloneCalculationOpenModifier(onOpen: onOpen))
     }
 }
