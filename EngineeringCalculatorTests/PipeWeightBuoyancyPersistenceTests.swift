@@ -27,6 +27,35 @@ final class PipeWeightBuoyancyPersistenceTests: XCTestCase {
         XCTAssertTrue(PipeWeightBuoyancyPersistence.compareStoredOutputs(restored.storedOutputs, with: recalculated).isEmpty); XCTAssertEqual(recalculated.pipeMassKgPerM, originalResult.pipeMassKgPerM, accuracy: 1e-12); XCTAssertEqual(recalculated.submergedWeightKNPerM, originalResult.submergedWeightKNPerM, accuracy: 1e-12)
     }
 
+    func testThreeDistinctMaterialsSurviveFileRoundTripInLayerOrder() throws {
+        let steel = EngineeringMaterial(id: UUID(uuidString: "B5000000-0000-0000-0000-000000000001")!, name: "Three Layer Steel", category: "Steel", densityKgM3: 7850, source: "Regression fixture")
+        let concrete = EngineeringMaterial(id: UUID(uuidString: "B5000000-0000-0000-0000-000000000002")!, name: "Three Layer Concrete", category: "Coating", densityKgM3: 3040, source: "Regression fixture")
+        let polymer = EngineeringMaterial(id: UUID(uuidString: "B5000000-0000-0000-0000-000000000003")!, name: "Three Layer Polymer", category: "Coating", densityKgM3: 940, source: "Regression fixture")
+        let source = PipeConstruction(
+            name: "Three Material Regression",
+            internalDiameterM: 0.250,
+            layers: [
+                PipeLayer(name: "Steel", thicknessM: 0.018, material: steel),
+                PipeLayer(name: "Concrete", thicknessM: 0.040, material: concrete),
+                PipeLayer(name: "Polymer", thicknessM: 0.006, material: polymer)
+            ],
+            internalFluid: FluidDefinition(name: "Contents", densityKgM3: 875),
+            externalFluid: FluidDefinition(name: "Seawater", densityKgM3: 1025)
+        )
+        let baseline = PipeWeightBuoyancyCalculator.calculate(construction: source)
+        let document = try PipeWeightBuoyancyPersistence.makeDocument(name: "Three Material Regression", construction: source, result: baseline)
+        let decoded = try CalculationDocumentFileIO.document(from: CalculationDocumentFileIO.data(for: document))
+        let restored = try PipeWeightBuoyancyPersistence.restore(from: decoded)
+        let recalculated = PipeWeightBuoyancyCalculator.calculate(construction: restored.construction)
+
+        XCTAssertEqual(restored.construction.layers.count, 3)
+        XCTAssertEqual(restored.construction.layers.map(\.material.id), [steel.id, concrete.id, polymer.id])
+        XCTAssertEqual(restored.construction.layers.map(\.thicknessM), [0.018, 0.040, 0.006])
+        XCTAssertEqual(restored.construction.layers.map(\.material.densityKgM3), [7850, 3040, 940])
+        XCTAssertEqual(document.embeddedMaterials.count, 3)
+        XCTAssertTrue(PipeWeightBuoyancyPersistence.compareStoredOutputs(restored.storedOutputs, with: recalculated).isEmpty)
+    }
+
     func testChangedCalculationResultIsDetectedAgainstStoredBaseline() throws {
         let source = construction(); let baseline = PipeWeightBuoyancyCalculator.calculate(construction: source); let document = try PipeWeightBuoyancyPersistence.makeDocument(name: "Baseline", construction: source, result: baseline); let restored = try PipeWeightBuoyancyPersistence.restore(from: document); var changed = restored.construction; changed.internalDiameterM += 0.010; let changedResult = PipeWeightBuoyancyCalculator.calculate(construction: changed); let differences = PipeWeightBuoyancyPersistence.compareStoredOutputs(restored.storedOutputs, with: changedResult)
         XCTAssertFalse(differences.isEmpty); XCTAssertTrue(differences.contains(CalculationFieldID(rawValue: "pipeMassKgPerM")))
