@@ -5,9 +5,11 @@ final class PipeHeatTransferCalculatorTests: XCTestCase {
     private let k10=EngineeringMaterial(name:"TEST k=10",category:"Validation",thermalConductivityWMK:10)
     private let k20=EngineeringMaterial(name:"TEST k=20",category:"Validation",thermalConductivityWMK:20)
     private let densityOnly=EngineeringMaterial(name:"TEST Missing k",category:"Validation",densityKgM3:1000)
+    private let lowK=EngineeringMaterial(name:"TEST Low k",category:"Validation",thermalConductivityWMK:0.05)
     private var tabulated:EngineeringMaterial{EngineeringMaterial(name:"TEST Table k",category:"Validation",thermalConductivitySeries:MaterialPropertySeries(temperatureTable:[.init(temperatureC:0,value:10),.init(temperatureC:50,value:15),.init(temperatureC:100,value:20)]))}
     private var steep:EngineeringMaterial{EngineeringMaterial(name:"TEST Steep k(T)",category:"Validation",thermalConductivitySeries:MaterialPropertySeries(temperatureTable:[.init(temperatureC:0,value:1),.init(temperatureC:100,value:5)]))}
     private var limited:EngineeringMaterial{EngineeringMaterial(name:"TEST Limited k(T)",category:"Validation",thermalConductivitySeries:MaterialPropertySeries(temperatureTable:[.init(temperatureC:20,value:0.8),.init(temperatureC:40,value:0.9),.init(temperatureC:60,value:1.0)]))}
+    private var coldLimited:EngineeringMaterial{EngineeringMaterial(name:"TEST Cold Limited k(T)",category:"Validation",thermalConductivitySeries:MaterialPropertySeries(temperatureTable:[.init(temperatureC:0,value:1.0),.init(temperatureC:25,value:1.05),.init(temperatureC:50,value:1.1)]))}
     private func input(layers:[PipeHeatTransferLayer],inside:Double=100,outside:Double=0,length:Double=1)->PipeHeatTransferInput{.init(internalDiameterM:0.300,layers:layers,insideBoundaryTemperatureC:inside,outsideBoundaryTemperatureC:outside,lengthM:length)}
 
     func testSingleLayerConstantKMatchesAnalyticalResistance() throws {let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(thicknessM:0.020,material:k10)])).result);let r=log(0.170/0.150)/(2*Double.pi*10);XCTAssertEqual(result.totalResistanceKPerW,r,accuracy:1e-12);XCTAssertEqual(result.heatRateW,100/r,accuracy:1e-8);XCTAssertEqual(result.finalOuterDiameterM,0.340,accuracy:1e-12);XCTAssertEqual(result.totalComputationalCells,1)}
@@ -25,4 +27,28 @@ final class PipeHeatTransferCalculatorTests: XCTestCase {
     func testTabulatedConductivityAtUniformMeanCase() throws {let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(thicknessM:0.020,material:tabulated)],inside:100,outside:0)).result);XCTAssertGreaterThan(result.layers[0].thermalConductivityWMK,10);XCTAssertLessThan(result.layers[0].thermalConductivityWMK,20)}
     func testLayerTemperatureDropsSumToSpecifiedBoundaryDifference() throws {let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(thicknessM:0.010,material:k10),.init(thicknessM:0.020,material:k20)],inside:120,outside:20)).result);XCTAssertEqual(result.layers.reduce(0){$0+$1.temperatureDropC},100,accuracy:1e-8);XCTAssertEqual(result.layers.last?.outerBoundaryTemperatureC ?? .nan,20,accuracy:1e-8)}
     func testHeatRateScalesWithLengthButHeatRatePerLengthDoesNot() throws {let one=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(thicknessM:0.020,material:k10)],length:1)).result);let five=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(thicknessM:0.020,material:k10)],length:5)).result);XCTAssertEqual(five.heatRateW,one.heatRateW*5,accuracy:1e-7);XCTAssertEqual(five.heatRatePerLengthWM,one.heatRatePerLengthWM,accuracy:1e-7)}
+
+    func testColdLimitedMaterialIsAcceptedWhenOuterLayerStaysWithinRange() throws {
+        let model=input(layers:[.init(name:"Inner insulation",thicknessM:0.100,material:lowK),.init(name:"Cold outer layer",thicknessM:0.020,material:coldLimited)],inside:100,outside:0)
+        let validated=PipeHeatTransferCalculator.validatedCalculate(input:model)
+        XCTAssertTrue(validated.validation.canCalculate,"Preflight validation should not reject a material merely because the global mean temperature is outside its range")
+        XCTAssertNil(validated.solverFailure)
+        let result=try XCTUnwrap(validated.result)
+        let outer=result.layers[1]
+        XCTAssertLessThanOrEqual(outer.innerBoundaryTemperatureC,50.0)
+        XCTAssertGreaterThanOrEqual(outer.outerBoundaryTemperatureC,0.0)
+    }
+
+    func testColdLimitedMaterialFailsWhenItsPhysicalLayerExceedsRange() {
+        let model=input(layers:[.init(name:"Cold limited inner layer",thicknessM:0.020,material:coldLimited),.init(name:"Outer insulation",thicknessM:0.100,material:lowK)],inside:100,outside:0)
+        let validated=PipeHeatTransferCalculator.validatedCalculate(input:model)
+        XCTAssertTrue(validated.validation.canCalculate,"Range checking belongs to the solved physical layer temperatures")
+        XCTAssertNil(validated.result)
+        guard case let .thermalConductivityUnavailable(name,t,status)?=validated.solverFailure else { return XCTFail("Expected local temperature-range failure") }
+        XCTAssertEqual(name,"TEST Cold Limited k(T)")
+        XCTAssertGreaterThan(t,50.0)
+        guard case let .outsideAvailableRange(minimum,maximum)=status else { return XCTFail("Expected outsideAvailableRange") }
+        XCTAssertEqual(minimum,0.0)
+        XCTAssertEqual(maximum,50.0)
+    }
 }
