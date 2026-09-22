@@ -46,6 +46,86 @@ final class CalculationPersistenceTests: XCTestCase {
         )
     }
 
+    private func comprehensiveMaterial() -> EngineeringMaterial {
+        let materialID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
+        return EngineeringMaterial(
+            id: materialID,
+            name: "TEST - Portable Engineering Material",
+            category: "Persistence",
+            densityKgM3: 7850,
+            grade: "Grade P",
+            thermalConductivityWMK: 45,
+            specificHeatCapacityJkgK: 475,
+            thermalExpansionMicrostrainPerK: 12,
+            minimumServiceTemperatureC: -40,
+            maximumServiceTemperatureC: 350,
+            youngsModulusGPa: 205,
+            poissonsRatio: 0.29,
+            yieldStrengthMPa: 355,
+            ultimateTensileStrengthMPa: 510,
+            shearModulusGPa: 79,
+            compressiveStrengthMPa: 420,
+            electricalResistivityOhmM: 1.7e-7,
+            source: "Persistence regression source",
+            notes: "Complete material snapshot fixture",
+            isBuiltIn: false,
+            unsDesignation: "TEST-UNS",
+            standardDesignation: "TEST STD",
+            productForm: "Pipe",
+            materialCondition: "Normalised",
+            smysMPa: 355,
+            smtsMPa: 510,
+            thermalConductivitySeries: MaterialPropertySeries(
+                referenceValue: 45,
+                referenceTemperatureC: 20,
+                temperatureTable: [
+                    MaterialPropertyPoint(
+                        id: UUID(uuidString: "66666666-6666-6666-6666-666666666666")!,
+                        temperatureC: 20,
+                        value: 45
+                    ),
+                    MaterialPropertyPoint(
+                        id: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!,
+                        temperatureC: 100,
+                        value: 41
+                    )
+                ],
+                source: "Thermal table source",
+                basis: "Measured"
+            ),
+            specificHeatCapacitySeries: MaterialPropertySeries(
+                referenceValue: 475,
+                referenceTemperatureC: 20,
+                equation: MaterialPropertyEquation(
+                    minimumTemperatureC: 0,
+                    maximumTemperatureC: 300,
+                    allowsExtrapolation: false,
+                    kind: .linearReference,
+                    referenceValue: 475,
+                    referenceTemperatureC: 20,
+                    slope: 0.25
+                ),
+                source: "Cp correlation source",
+                basis: "Correlation"
+            ),
+            electricalResistivitySeries: MaterialPropertySeries(
+                referenceValue: 1.7e-7,
+                referenceTemperatureC: 20,
+                equation: MaterialPropertyEquation(
+                    minimumTemperatureC: -20,
+                    maximumTemperatureC: 200,
+                    allowsExtrapolation: false,
+                    kind: .relativeLinear,
+                    referenceValue: 1.7e-7,
+                    referenceTemperatureC: 20,
+                    temperatureCoefficient: 0.0039
+                ),
+                source: "Resistivity correlation source",
+                basis: "TCR"
+            )
+        )
+    }
+
     func testStandaloneDocumentRoundTripPreservesEngineeringRecord() throws {
         let calculation = sampleCalculation()
         let document = CalculationDocument(
@@ -179,5 +259,89 @@ final class CalculationPersistenceTests: XCTestCase {
         let first = try CalculationDocumentCodec.encode(document)
         let second = try CalculationDocumentCodec.encode(document)
         XCTAssertEqual(first, second)
+    }
+
+    func testEmbeddedMaterialRoundTripPreservesCompleteDefinitionAndUUID() throws {
+        let material = comprehensiveMaterial()
+        let document = CalculationDocument.standalone(
+            sampleCalculation(),
+            embeddedMaterials: [EmbeddedMaterial(material: material)]
+        )
+
+        let data = try CalculationDocumentCodec.encode(document)
+        let decoded = try CalculationDocumentCodec.decode(data)
+        let restored = try XCTUnwrap(decoded.embeddedMaterials.first?.material)
+
+        XCTAssertEqual(restored, material)
+        XCTAssertEqual(restored.id, material.id)
+        XCTAssertEqual(restored.thermalConductivitySeries, material.thermalConductivitySeries)
+        XCTAssertEqual(restored.specificHeatCapacitySeries, material.specificHeatCapacitySeries)
+        XCTAssertEqual(restored.electricalResistivitySeries, material.electricalResistivitySeries)
+        XCTAssertEqual(restored.source, material.source)
+        XCTAssertEqual(restored.notes, material.notes)
+    }
+
+    func testEmbeddedMaterialPreservesTemperatureTablePointIdentity() throws {
+        let material = comprehensiveMaterial()
+        let document = CalculationDocument.standalone(
+            sampleCalculation(),
+            embeddedMaterials: [EmbeddedMaterial(material: material)]
+        )
+
+        let decoded = try CalculationDocumentCodec.decode(CalculationDocumentCodec.encode(document))
+        let originalPoints = try XCTUnwrap(material.thermalConductivitySeries?.temperatureTable)
+        let decodedPoints = try XCTUnwrap(decoded.embeddedMaterials.first?.material.thermalConductivitySeries?.temperatureTable)
+
+        XCTAssertEqual(decodedPoints, originalPoints)
+        XCTAssertEqual(decodedPoints.map(\.id), originalPoints.map(\.id))
+    }
+
+    func testEmbeddedMaterialPreservesEquationKindsAndCoefficients() throws {
+        let material = comprehensiveMaterial()
+        let document = CalculationDocument.standalone(
+            sampleCalculation(),
+            embeddedMaterials: [EmbeddedMaterial(material: material)]
+        )
+
+        let decoded = try CalculationDocumentCodec.decode(CalculationDocumentCodec.encode(document))
+        let restored = try XCTUnwrap(decoded.embeddedMaterials.first?.material)
+
+        XCTAssertEqual(restored.specificHeatCapacitySeries?.equation?.effectiveKind, .linearReference)
+        XCTAssertEqual(restored.specificHeatCapacitySeries?.equation?.slope, 0.25)
+        XCTAssertEqual(restored.electricalResistivitySeries?.equation?.effectiveKind, .relativeLinear)
+        XCTAssertEqual(restored.electricalResistivitySeries?.equation?.temperatureCoefficient, 0.0039)
+    }
+
+    func testProjectStoresSharedEmbeddedMaterialOnce() throws {
+        let material = comprehensiveMaterial()
+        let document = CalculationDocument(
+            kind: .project,
+            title: "Shared material project",
+            calculations: [sampleCalculation(), sampleCalculation()],
+            embeddedMaterials: [EmbeddedMaterial(material: material)]
+        )
+
+        let decoded = try CalculationDocumentCodec.decode(CalculationDocumentCodec.encode(document))
+        XCTAssertEqual(decoded.calculations.count, 2)
+        XCTAssertEqual(decoded.embeddedMaterials.count, 1)
+        XCTAssertEqual(decoded.embeddedMaterials[0].id, material.id)
+    }
+
+    func testDuplicateEmbeddedMaterialUUIDIsRejected() {
+        let material = comprehensiveMaterial()
+        var changedCopy = material
+        changedCopy.name = "Same UUID, conflicting definition"
+
+        let document = CalculationDocument.standalone(
+            sampleCalculation(),
+            embeddedMaterials: [
+                EmbeddedMaterial(material: material),
+                EmbeddedMaterial(material: changedCopy)
+            ]
+        )
+
+        XCTAssertThrowsError(try CalculationDocumentCodec.encode(document)) { error in
+            XCTAssertEqual(error as? CalculationDocumentCodecError, .duplicateEmbeddedMaterialID(material.id))
+        }
     }
 }
