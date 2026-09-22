@@ -2,170 +2,74 @@
 
 A modular SwiftUI engineering-calculation app for iOS and macOS.
 
-> **Development agents/contributors:** Read [`AGENTS.md`](AGENTS.md) first for persistent development rules, then [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md) for the current project checkpoint, implementation history and roadmap. When the user says **refresh**, both documents must be read before development continues.
+> **Development agents/contributors:** Read `AGENTS.md` first, then `DEVELOPMENT_STATUS.md`. When the user says **refresh**, read both before continuing development.
 
-## Current development status — 20 September 2026
+## Current development status — 22 September 2026
 
-Active development branch: `feature/material-property-framework`
+**Active branch:** `feature/material-requirement-validation`  
+**Current focus:** calculator/material integration and validated engineering calculations.
 
-The project is currently focused on the reusable Materials Library and temperature-dependent material-property framework before moving on to additional engineering calculators.
+### Verified checkpoint
 
-> **Detailed handover / development roadmap:** See [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md). It records completed work, design decisions, test/checkpoint information, lessons from previous implementations, and the detailed development path ahead.
+The last formally verified checkpoint is **66 tests passed, 0 failures**.
 
-### Current working functionality
+Completed and verified:
 
-- Shared engineering material model used by calculators and the Materials Library.
-- Built-in and user-created materials.
-- Material categories and editable engineering properties.
-- Simplified and advanced material-property editing.
-- Temperature-dependent property representations: constant/scalar, tabulated/interpolated, polynomial, linear-reference, and relative-linear/TCR.
-- Material Property Inspector with resolved value/method, graph and traceability information.
-- User materials persist locally as JSON in Application Support.
-- Existing pipe weight/buoyancy calculation remains operational.
-- Portable material interchange using human-readable `.ecmaterial` / `.ecmaterials` files.
-- Native macOS/iOS Material Files interface for importing and exporting user, built-in, complete, and individual materials.
-- Safe import merge: imported data cannot become protected built-in data, UUID collisions are regenerated, and duplicate names receive an ` (Imported N)` suffix rather than overwriting existing materials.
-- Custom material UTTypes are registered for `.ecmaterial` and `.ecmaterials`.
-- Reusable multi-material comparison engine with explicit reference material, differences and engineering-aware equality.
-- Multi-material selector preserves selection order and marks the first selection with a green `R`, followed by `2`, `3`, `4…` badges.
-- macOS comparison opens in a native resizable/full-screen window.
-- macOS comparison grid automatically fills available width, supports user-resizable columns, freezes Property + Reference columns, and only enables horizontal scrolling when the table actually exceeds the viewport.
-- **Differences Only** and reference-material changes are supported in the comparison UI.
+- shared Engineering Materials Library with built-in and user materials;
+- portable `.ecmaterial` / `.ecmaterials` import/export;
+- temperature-dependent property resolver with constants, tables and equations;
+- reusable material comparison framework and macOS comparison UI;
+- central material-requirement/validation API;
+- required vs optional material properties;
+- temperature-aware property validation including validity/range handling;
+- standard requirement sets for mass, steady-state conduction, transient thermal and linear-elastic calculations;
+- portable synthetic validation library in `TestData/EngineeringCalculator_Validation_Test_Materials.ecmaterials`;
+- Pipe Weight & Buoyancy integrated with density validation;
+- invalid/missing density blocks results instead of silently becoming zero;
+- automated Pipe Weight material-validation regression tests.
 
-## Validation baseline
+### Work in progress — multilayer pipe heat transfer
 
-**Earlier recorded automated baseline: 33 tests passed, 0 failures** on macOS on 20 September 2026.
+`PipeHeatTransferCalculator.swift` and `PipeHeatTransferCalculatorTests.swift` have been added to the branch but are **not yet part of the verified checkpoint**.
 
-The user has subsequently confirmed that the complete current test suite passes and the project builds without errors. If the suite has grown beyond 33 tests, update the numeric baseline at the next formal validation checkpoint rather than assuming the older count is still current.
+The initial model implements steady-state radial conduction through concentric cylindrical layers:
 
-The automated suite includes the existing pipe/calculation tests, deterministic material resolver tests, portable material interchange tests and material comparison tests. Portable-file tests cover single and multiple-material round trips, preservation of equation kinds and temperature tables, malformed/empty/unsupported files, duplicate UUID handling, duplicate-name handling, built-in flag removal, and single-material document validation.
+`R_i = ln(r_o/r_i) / (2π k_i L)`
 
-A manual end-to-end round trip has also been completed successfully through the native UI using `Relative Linear / TCR`: export to `.ecmaterial`, select through the native file picker, decode, merge, regenerate the duplicate UUID, rename the duplicate to `Relative Linear / TCR (Imported 2)`, and add it to My Materials.
+`Q = (T_inside - T_outside) / ΣR_i`
 
-The deterministic material tests use artificial values with simple analytical answers, including:
+Design decisions for this calculator:
 
-- Constant density: `8000 kg/m³`.
-- Young's modulus table: `0 °C = 200 GPa`, `100 °C = 180 GPa`, `200 °C = 160 GPa`; therefore `50 °C = 190 GPa`.
-- Polynomial thermal conductivity: `k(T) = 10 + 0.1T + 0.001T²`; therefore `k(100 °C) = 30 W/(m·K)`.
-- TCR resistivity: `ρ(T) = 1.0×10⁻⁶ [1 + 0.004(T − 20)] Ω·m`; therefore `ρ(20 °C) = 1.0×10⁻⁶ Ω·m` and `ρ(120 °C) = 1.4×10⁻⁶ Ω·m`.
+- it uses `validatedCalculate()` from the start;
+- every solid layer declares thermal conductivity `k` as required;
+- unrelated missing properties such as density do not block conduction calculations;
+- temperature-dependent `k` is supported through `MaterialPropertyResolver`;
+- the first implementation evaluates temperature-dependent `k` at the arithmetic mean of the specified inside/outside boundary temperatures;
+- layer-specific iterative property evaluation is a planned refinement, not yet implemented.
 
-## Phase 1 — Portable material import/export — COMPLETE
+Nine heat-transfer tests have been written for analytical single/two-layer resistance, missing `k`, property specificity, tabulated/interpolated `k`, out-of-range rejection, temperature drops and length scaling.
 
-`MaterialPortableCodec` and the Material Files UI provide:
+## Immediate to-do list
 
-- single-material JSON export;
-- user-library, built-in-library and complete-library export;
-- individual export of built-in and user materials;
-- `.ecmaterial` and `.ecmaterials` registered file types;
-- native macOS/iOS file importer/exporter support;
-- format version `1` validation;
-- rejection of malformed JSON, unknown formats, unsupported future versions, empty documents and invalid single-material documents;
-- imported built-in flags are cleared so imported data cannot masquerade as protected built-in data;
-- duplicate UUIDs receive a new UUID;
-- duplicate names use an explicit ` (Imported N)` suffix;
-- merge imports append to the existing user library rather than replacing it;
-- scalar values, temperature tables, equations/coefficients, reference values/temperatures, validity ranges, extrapolation settings, traceability, identity metadata and notes survive portable-file round trips.
+1. Add `PipeHeatTransferCalculator.swift` to the application target and `PipeHeatTransferCalculatorTests.swift` to the test target.
+2. Run the complete suite. **Next target: 75/75 tests passing.**
+3. Build the SwiftUI Heat Transfer calculator on top of the verified engine.
+4. Manually test constant and temperature-dependent `k` using the validation-material library.
+5. Add UI/integration regression coverage.
+6. Refine temperature-dependent conduction to use layer-specific iterative mean temperatures.
+7. Add inside/outside convection resistance and ambient/bulk-fluid boundary conditions.
+8. Re-run macOS and iOS integration/regression tests.
+9. Decide whether the next material-aware calculator should exercise transient thermal properties (`ρ`, `Cp`, `k`) or mechanical properties (`E`, `ν`).
 
-Built-in materials can deliberately be exported for independent checking. Exporting them does not modify the protected built-in library.
+The previously planned comparison PDF/print/CSV work remains on the roadmap, but calculator/material integration is the current priority.
 
-## Phase 2 — Material Comparison & Reporting — IN PROGRESS
+## Material validation principle
 
-### 2.1 Comparison engine — COMPLETE
+Calculators must explicitly declare the material properties they require. Before results are evaluated, selected materials must be validated against those requirements. Missing or unresolvable required data must produce an actionable warning and block the result; it must not be silently replaced with zero or an arbitrary default.
 
-The reusable comparison engine is independent of the SwiftUI presentation so the same comparison data can drive on-screen tables and future PDF/CSV/print/share outputs.
+New material-aware calculators should expose a safe `validatedCalculate()` entry point so callers cannot accidentally bypass validation.
 
-Implemented behaviour includes:
-
-- compare two or more materials;
-- first selected material initially becomes the reference;
-- reference can subsequently be changed;
-- built-in and user materials can be compared together;
-- grouped identity/traceability, physical, thermal, mechanical, electrical and service-limit rows;
-- explicit missing values;
-- numeric absolute and percentage differences where meaningful;
-- engineering-aware equality/tolerance rules;
-- structural comparison of temperature-dependent property definitions.
-
-### 2.2 Comparison selection/reference workflow — COMPLETE
-
-- Multi-select remains open until the user presses **Compare (n)**.
-- First selection is shown with a green **R** badge.
-- Later selections are numbered `2`, `3`, `4…`.
-- Removing a selection renumbers the remaining materials.
-- New selections append to the end of the order.
-- Selection order is retained in the comparison.
-- Reference material can be changed from the comparison screen.
-- **All properties** / **Differences Only** behaviour is available.
-
-### 2.3 macOS comparison UI — COMPLETE / MANUALLY TESTED
-
-The current Mac implementation has been manually tested and should be treated as the comparison-UI baseline:
-
-- separate native resizable comparison window;
-- full-screen capable;
-- minimum usable window width;
-- grid expands to fill available width when only a few materials are compared;
-- user-resizable Property/material columns;
-- frozen Property and Reference columns;
-- opaque frozen cells so scrolling content does not show through;
-- section headings remain aligned while scrolling;
-- horizontal scrollbar appears only when the actual table width exceeds the viewport;
-- scrollbar disappears when the table fits again;
-- long/wrapped rows remain aligned.
-
-See `DEVELOPMENT_STATUS.md` for implementation history and design lessons, including approaches that were tried and rejected.
-
-### 2.4 PDF comparison reporting — NEXT
-
-The immediate next development task is a report-ready comparison model followed by PDF generation.
-
-The PDF/report implementation should:
-
-- consume `MaterialComparison` directly rather than screenshotting the SwiftUI table;
-- clearly identify the reference material;
-- preserve material order;
-- support All Properties and Differences Only;
-- group engineering properties by section;
-- include values, units, absolute/percentage differences, missing values and traceability;
-- wrap long source/notes content;
-- support multi-page output;
-- provide deterministic, engineering-report-quality formatting;
-- be covered by automated report-model tests before the final UI export action is added.
-
-The detailed implementation sequence and acceptance criteria are in `DEVELOPMENT_STATUS.md`.
-
-### 2.5–2.8 Planned comparison/reporting work
-
-After PDF reporting:
-
-1. Native print support reusing the report model/layout.
-2. CSV / Excel-compatible comparison export.
-3. Native share workflow for PDF/CSV files.
-4. Enhanced temperature-dependent comparison: expanded equations/tables, selected-temperature evaluation and common plots.
-
-## Phase 3 — Debug validation materials and manual UI verification
-
-Expose deterministic validation fixtures to Debug builds only and manually verify constant values, table interpolation/range warnings, polynomial and TCR evaluation/graphs, invalid temperatures, material/property switching, synchronized units/method/traceability, and compact iPhone/macOS layouts.
-
-## Phase 4 — Materials Library regression/UI pass
-
-Verify All/Built-in/My Materials filtering, category organisation, drag/drop/copy behaviour, drop targets, create/edit/duplicate/move/delete, built-in protection, simplified/advanced views, multiline headings, macOS editor resizing/padding, and practical table/equation editing.
-
-## Phase 5 — File format/versioning hardening
-
-Freeze/document the first public material schema, define migrations, add compatibility fixture tests, and explicitly document units and temperature conventions. Consider adding portable-file provenance metadata so an independently reviewed export records that it originated from the built-in library without allowing a subsequent import to regain protected built-in status.
-
-## Phase 6 — Populate verified engineering materials
-
-Add traceable real engineering materials only after the framework/editor/interchange/reporting format is stable. Preserve source, standard/grade, product form, condition and applicability, and avoid implying excessive precision.
-
-## Phase 7 — Continue modular calculator development
-
-New calculators should consume the shared material/property resolver and include deterministic unit tests.
-
-Before a calculator evaluates results, it must validate that every selected material provides the properties required by that calculation. Missing required data (for example density, specific heat capacity or thermal conductivity) must produce a clear, actionable user warning rather than silently substituting zero/default data or producing a misleading result. Calculators should declare their required and optional material properties so validation can be handled by a reusable central material-validation layer. Temperature-dependent properties must also be checked for resolvability at the requested operating condition, including validity range/extrapolation rules. See `DEVELOPMENT_STATUS.md` for the planned validation architecture and test cases.
-
-## Current pipe calculation convention
+## Current pipe weight convention
 
 Dry pipe mass/weight excludes internal contents and buoyancy.
 
@@ -177,7 +81,7 @@ with `g = 9.80665 m/s²`.
 
 ## Development workflow
 
-At the start of a development session:
+At the start of a session:
 
 ```bash
 git pull
@@ -185,11 +89,15 @@ git status
 git branch --show-current
 ```
 
-For the current work the branch should be `feature/material-property-framework`.
+The current branch should be:
 
-Run the regression suite with **⌘U** before and after substantial changes.
+```text
+feature/material-requirement-validation
+```
 
-When a tested change is ready to commit manually:
+Run the complete regression suite with **⌘U** before and after substantial changes.
+
+When a tested local change needs committing manually:
 
 ```bash
 git status
@@ -198,4 +106,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-When resuming this project after a break, read **`AGENTS.md` first**, then **`DEVELOPMENT_STATUS.md`**, confirm the full regression suite is green, smoke-test the comparison screen, and continue with **Phase 2.4 — PDF comparison reporting**.
+For the detailed checkpoint, architecture decisions, validation fixtures and roadmap, see `DEVELOPMENT_STATUS.md`.
