@@ -176,6 +176,7 @@ struct PipeHeatTransferView: View {
     private struct TemperaturePoint: Identifiable {
         let id: Int
         let diameterMM: Double
+        let radialBuildMM: Double
         let temperatureC: Double
         let label: String
     }
@@ -183,40 +184,55 @@ struct PipeHeatTransferView: View {
     private struct LayerBand: Identifiable {
         let id: UUID
         let name: String
-        let innerDiameterMM: Double
-        let outerDiameterMM: Double
+        let innerRadialBuildMM: Double
+        let outerRadialBuildMM: Double
     }
 
     private func temperaturePoints(_ result: PipeHeatTransferResult) -> [TemperaturePoint] {
         guard let first = result.layers.first else { return [] }
+
+        let datumDiameterMM = first.innerRadiusM * 2000
+
         var points: [TemperaturePoint] = [
             .init(
                 id: 0,
-                diameterMM: first.innerRadiusM * 2000,
+                diameterMM: datumDiameterMM,
+                radialBuildMM: 0,
                 temperatureC: first.innerBoundaryTemperatureC,
                 label: "Inside surface"
             )
         ]
+
         for (i, layer) in result.layers.enumerated() {
+            let diameterMM = layer.outerRadiusM * 2000
+
             points.append(
                 .init(
                     id: i + 1,
-                    diameterMM: layer.outerRadiusM * 2000,
+                    diameterMM: diameterMM,
+                    radialBuildMM: (diameterMM - datumDiameterMM) / 2,
                     temperatureC: layer.outerBoundaryTemperatureC,
-                    label: i == result.layers.count - 1 ? "Outside surface" : "After \(layer.name)"
+                    label: i == result.layers.count - 1
+                        ? "Outside surface"
+                        : "After \(layer.name)"
                 )
             )
         }
+
         return points
     }
 
     private func layerBands(_ result: PipeHeatTransferResult) -> [LayerBand] {
-        result.layers.map {
+        guard let first = result.layers.first else { return [] }
+
+        let datumRadiusMM = first.innerRadiusM * 1000
+
+        return result.layers.map {
             .init(
                 id: $0.id,
                 name: $0.name,
-                innerDiameterMM: $0.innerRadiusM * 2000,
-                outerDiameterMM: $0.outerRadiusM * 2000
+                innerRadialBuildMM: ($0.innerRadiusM * 1000) - datumRadiusMM,
+                outerRadialBuildMM: ($0.outerRadiusM * 1000) - datumRadiusMM
             )
         }
     }
@@ -229,12 +245,57 @@ struct PipeHeatTransferView: View {
         return (low - padding)...(high + padding)
     }
 
+    private func annotationPosition(
+        for point: TemperaturePoint,
+        in points: [TemperaturePoint]
+    ) -> AnnotationPosition {
+        // Keep endpoint labels inside the chart bounds.
+
+        if point.id == points.first?.id {
+
+            return .topTrailing
+
+        }
+
+        if point.id == points.last?.id {
+
+            return .topLeading
+
+        }
+        guard let index = points.firstIndex(where: { $0.id == point.id }) else {
+            return .top
+        }
+
+        let minimumSeparationC = 5.0
+
+        let closeToPrevious: Bool = {
+            guard index > 0 else { return false }
+            return abs(
+                point.temperatureC - points[index - 1].temperatureC
+            ) < minimumSeparationC
+        }()
+
+        let closeToNext: Bool = {
+            guard index < points.count - 1 else { return false }
+            return abs(
+                point.temperatureC - points[index + 1].temperatureC
+            ) < minimumSeparationC
+        }()
+
+        if closeToPrevious || closeToNext {
+            return index.isMultiple(of: 2) ? .top : .bottom
+        }
+
+        return .top
+    }
+    
     @ViewBuilder
     private var temperatureProfileSection: some View {
         if let result = validated.result {
             let points = temperaturePoints(result)
             let bands = layerBands(result)
-            let domain = temperatureDomain(result)
+            let temperatureDomain = temperatureDomain(result)
+            let radialBuildDomain = 0.0...(points.map(\.radialBuildMM).max() ?? 1.0)
 
             Section {
                 Chart {
@@ -242,10 +303,10 @@ struct PipeHeatTransferView: View {
                     // layers, not the adaptive computational cells used by the solver.
                     ForEach(bands) { band in
                         RectangleMark(
-                            xStart: .value("Layer start", band.innerDiameterMM),
-                            xEnd: .value("Layer end", band.outerDiameterMM),
-                            yStart: .value("Plot minimum", domain.lowerBound),
-                            yEnd: .value("Plot maximum", domain.upperBound)
+                            xStart: .value("Layer start", band.innerRadialBuildMM),
+                            xEnd: .value("Layer end", band.outerRadialBuildMM),
+                            yStart: .value("Plot minimum", temperatureDomain.lowerBound),
+                            yEnd: .value("Plot maximum", temperatureDomain.upperBound)
                         )
                         .foregroundStyle(by: .value("Layer", band.name))
                         .opacity(0.16)
@@ -254,7 +315,7 @@ struct PipeHeatTransferView: View {
                     // Mark every physical interface explicitly.
                     ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
                         if index > 0 {
-                            RuleMark(x: .value("Interface", band.innerDiameterMM))
+                            RuleMark(x: .value("Interface", band.innerRadialBuildMM))
                                 .foregroundStyle(.secondary.opacity(0.65))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                         }
@@ -262,7 +323,7 @@ struct PipeHeatTransferView: View {
 
                     ForEach(points) { point in
                         LineMark(
-                            x: .value("Diameter (mm)", point.diameterMM),
+                            x: .value("Radial build (mm)", point.radialBuildMM),
                             y: .value("Temperature (°C)", point.temperatureC),
                             series: .value("Profile", "Temperature")
                         )
@@ -270,19 +331,23 @@ struct PipeHeatTransferView: View {
                         .lineStyle(StrokeStyle(lineWidth: 2))
 
                         PointMark(
-                            x: .value("Diameter (mm)", point.diameterMM),
+                            x: .value("Radial build (mm)", point.radialBuildMM),
                             y: .value("Temperature (°C)", point.temperatureC)
                         )
                         .foregroundStyle(.primary)
-                        .annotation(position: .top, alignment: .center) {
+                        .annotation(
+                            position: annotationPosition(for: point, in: points),
+                            alignment: .center
+                        ) {
                             Text(point.temperatureC.formatted(.number.precision(.fractionLength(1))))
                                 .font(.caption2)
                                 .monospacedDigit()
                         }
                     }
                 }
-                .chartYScale(domain: domain)
-                .chartXAxisLabel("Diameter (mm)")
+                .chartXScale(domain: radialBuildDomain)
+                .chartYScale(domain: temperatureDomain)
+                .chartXAxisLabel("Radial build from internal surface (mm)")
                 .chartYAxisLabel("Temperature (°C)")
                 .chartLegend(position: .bottom, alignment: .leading, spacing: 10)
                 .frame(minHeight: 280)
@@ -299,7 +364,12 @@ struct PipeHeatTransferView: View {
             } header: {
                 Text("Interface Temperature Profile")
             } footer: {
-                Text("Shaded bands identify the physical pipe or coating layers. Dashed vertical lines mark layer interfaces. Points show the solved interface temperatures; adaptive computational cells are intentionally not shown.")
+                Text(
+                    "The horizontal axis shows radial build measured outward from the internal pipe surface. " +
+                    "Shaded bands identify the physical pipe or coating layers. Dashed vertical lines mark " +
+                    "layer interfaces. Points show the solved interface temperatures; adaptive computational " +
+                    "cells are intentionally not shown."
+                )
             }
         }
     }
