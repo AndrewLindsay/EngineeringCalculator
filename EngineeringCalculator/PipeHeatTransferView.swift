@@ -200,5 +200,9 @@ private struct AddHeatTransferLayerView: View {
             Section("Layer"){LabeledContent("Thickness (mm)"){TextField("",value:$thicknessMM,format:.number.precision(.fractionLength(0...4))).labelsHidden().multilineTextAlignment(.trailing)}}
         }.navigationTitle("Add Heat Transfer Layer").toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}};ToolbarItem(placement:.confirmationAction){Button("Add"){guard let material=selectedMaterial else{return};onAdd(material,max(0,thicknessMM));dismiss()}.disabled(selectedMaterial==nil || thicknessMM<=0)}}.sheet(isPresented:$showingNewMaterial){NavigationStack{MaterialEditorView().environmentObject(store)}}
     }
-    private func materials(in category:String)->[EngineeringMaterial]{store.allMaterials.filter{$0.category.caseInsensitiveCompare(category)==.orderedSame}}
+    private func materials(in category:String)->[EngineeringMaterial]{
+        store.allMaterials.filter { material in
+            material.category.caseInsensitiveCompare(category) == ComparisonResult.orderedSame
+        }
+    }
 }
