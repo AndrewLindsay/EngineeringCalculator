@@ -183,8 +183,84 @@ struct PipeWeightBuoyancyView: View {
 }
 
 private struct AddPipeLayerView: View {
-    @EnvironmentObject private var store: MaterialLibraryStore; @Environment(\.dismiss) private var dismiss; @State private var selectedMaterialID: UUID?; @State private var thicknessMM=3.0; @State private var showingNewMaterial=false; let onAdd:(EngineeringMaterial,Double)->Void
-    private var selectedMaterial: EngineeringMaterial? { store.allMaterials.first{$0.id==selectedMaterialID} }
-    var body: some View { Form { Section("Material") { Picker("Material",selection:$selectedMaterialID){Text("Select a material").tag(nil as UUID?);ForEach(store.categories,id:\.self){category in Section(category){ForEach(materials(in:category)){material in Text(material.name).tag(Optional(material.id))}}}};if let material=selectedMaterial{LabeledContent("Category"){Text(material.category)};LabeledContent("Density"){if let density=material.densityKgM3{Text("\(density.formatted()) kg/m³")}else{Label("Missing — calculation will be blocked",systemImage:"exclamationmark.triangle.fill").foregroundStyle(.red)}}};Button{showingNewMaterial=true}{Label("Create New Material…",systemImage:"plus")}};Section("Layer"){LabeledContent("Thickness (mm)"){TextField("Thickness",value:$thicknessMM,format:.number.precision(.fractionLength(0...4))).multilineTextAlignment(.trailing)}}}.navigationTitle("Add Layer").toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}};ToolbarItem(placement:.confirmationAction){Button("Add"){guard let material=selectedMaterial else{return};onAdd(material,max(0,thicknessMM));dismiss()}.disabled(selectedMaterial==nil)}}.sheet(isPresented:$showingNewMaterial){NavigationStack{MaterialEditorView().environmentObject(store)}} }
-    private func materials(in category:String)->[EngineeringMaterial]{store.allMaterials.filter{$0.category.caseInsensitiveCompare(category)==.orderedSame}}
+    @EnvironmentObject private var store: MaterialLibraryStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedMaterialID: UUID?
+    @State private var thicknessMM = 3.0
+    @State private var showingNewMaterial = false
+    let onAdd: (EngineeringMaterial, Double) -> Void
+
+    private var selectedMaterial: EngineeringMaterial? {
+        store.allMaterials.first { $0.id == selectedMaterialID }
+    }
+
+    var body: some View {
+        Form {
+            Section("Material") {
+                Picker("Material", selection: $selectedMaterialID) {
+                    Text("Select a material").tag(nil as UUID?)
+                    ForEach(store.categories, id: \.self) { category in
+                        Section(category) {
+                            ForEach(materials(in: category)) { material in
+                                Text(material.name).tag(Optional(material.id))
+                            }
+                        }
+                    }
+                }
+
+                if let material = selectedMaterial {
+                    LabeledContent("Category") {
+                        Text(material.category)
+                    }
+                    LabeledContent("Density") {
+                        if let density = material.densityKgM3 {
+                            Text("\(density.formatted()) kg/m³")
+                        } else {
+                            Label("Missing — calculation will be blocked", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                Button {
+                    showingNewMaterial = true
+                } label: {
+                    Label("Create New Material…", systemImage: "plus")
+                }
+            }
+
+            Section("Layer") {
+                LabeledContent("Thickness (mm)") {
+                    TextField("Thickness", value: $thicknessMM, format: .number.precision(.fractionLength(0...4)))
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+        }
+        .navigationTitle("Add Layer")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Add") {
+                    guard let material = selectedMaterial else { return }
+                    onAdd(material, max(0, thicknessMM))
+                    dismiss()
+                }
+                .disabled(selectedMaterial == nil)
+            }
+        }
+        .sheet(isPresented: $showingNewMaterial) {
+            NavigationStack {
+                MaterialEditorView()
+                    .environmentObject(store)
+            }
+        }
+    }
+
+    private func materials(in category: String) -> [EngineeringMaterial] {
+        store.allMaterials.filter {
+            $0.category.caseInsensitiveCompare(category) == .orderedSame
+        }
+    }
 }
