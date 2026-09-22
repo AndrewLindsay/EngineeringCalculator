@@ -229,14 +229,14 @@ struct PipeWeightBuoyancyView: View {
                         } label: {
                             Label("Move Up", systemImage: "arrow.up")
                         }
-                        .disabled(isFirst(id: layer.id))
+                        .disabled(isFirst(layer.id))
 
                         Button {
                             moveLayer(id: layer.id, offset: 1)
                         } label: {
                             Label("Move Down", systemImage: "arrow.down")
                         }
-                        .disabled(isLast(id: layer.id))
+                        .disabled(isLast(layer.id))
                     }
                     .buttonStyle(.borderless)
                 }
@@ -269,12 +269,17 @@ struct PipeWeightBuoyancyView: View {
         }
     }
 
-    private func materialIssueRow(_ issue: PipeWeightMaterialValidationIssue) -> some View {
-        let isBlocking = issue.severity == .blocking
+    private func materialIssueRow(_ issue: MaterialValidationIssue) -> some View {
+        let isBlocking = issue.severity == .error
+
         return Label {
             Text(issue.message)
         } icon: {
-            Image(systemName: isBlocking ? "exclamationmark.triangle.fill" : "exclamationmark.circle")
+            Image(
+                systemName: isBlocking
+                    ? "exclamationmark.triangle.fill"
+                    : "exclamationmark.circle"
+            )
         }
         .foregroundStyle(isBlocking ? Color.red : Color.orange)
     }
