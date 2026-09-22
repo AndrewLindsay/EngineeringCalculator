@@ -76,4 +76,43 @@ final class PipeHeatTransferCalculatorTests: XCTestCase {
         XCTAssertEqual(minimum,20.0)
         XCTAssertEqual(maximum,60.0)
     }
+
+    // Regression coverage for the interface-temperature profile geometry.
+    // The chart datum is the internal pipe surface, not the pipe centreline.
+    func testTemperatureProfileRadialDatumStartsAtInternalSurface() throws {
+        let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(thicknessM:0.010,material:k10)])).result)
+        let datumRadius=result.layers[0].innerRadiusM
+        let innerBuildMM=(result.layers[0].innerRadiusM-datumRadius)*1000
+        let outerBuildMM=(result.layers[0].outerRadiusM-datumRadius)*1000
+        XCTAssertEqual(innerBuildMM,0.0,accuracy:1e-12)
+        XCTAssertEqual(outerBuildMM,10.0,accuracy:1e-9)
+        XCTAssertEqual(result.layers[0].innerRadiusM*2000,300.0,accuracy:1e-9)
+        XCTAssertEqual(result.layers[0].outerRadiusM*2000,320.0,accuracy:1e-9)
+    }
+
+    func testTemperatureProfileRadialBuildUsesCumulativePhysicalThickness() throws {
+        let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(name:"Layer 1",thicknessM:0.010,material:k10),.init(name:"Layer 2",thicknessM:0.040,material:k20)])).result)
+        let datumRadius=result.layers[0].innerRadiusM
+        let interfaces=[result.layers[0].innerRadiusM,result.layers[0].outerRadiusM,result.layers[1].outerRadiusM].map{($0-datumRadius)*1000}
+        XCTAssertEqual(interfaces[0],0.0,accuracy:1e-9)
+        XCTAssertEqual(interfaces[1],10.0,accuracy:1e-9)
+        XCTAssertEqual(interfaces[2],50.0,accuracy:1e-9)
+    }
+
+    func testTemperatureProfilePhysicalInterfacesRemainContinuous() throws {
+        let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(name:"Layer 1",thicknessM:0.010,material:k10),.init(name:"Layer 2",thicknessM:0.040,material:k20)],inside:120,outside:20)).result)
+        XCTAssertEqual(result.layers[0].innerBoundaryTemperatureC,120.0,accuracy:1e-9)
+        XCTAssertEqual(result.layers[0].outerBoundaryTemperatureC,result.layers[1].innerBoundaryTemperatureC,accuracy:1e-9)
+        XCTAssertEqual(result.layers[1].outerBoundaryTemperatureC,20.0,accuracy:1e-9)
+    }
+
+    func testTemperatureProfileUsesPhysicalLayersNotAdaptiveCells() throws {
+        let result=try XCTUnwrap(PipeHeatTransferCalculator.validatedCalculate(input:input(layers:[.init(name:"Adaptive material",thicknessM:0.100,material:steep)])).result)
+        XCTAssertEqual(result.layers.count,1)
+        XCTAssertGreaterThan(result.totalComputationalCells,1)
+        XCTAssertGreaterThan(result.layers[0].computationalCellCount,1)
+        let datumRadius=result.layers[0].innerRadiusM
+        let physicalOuterBuildMM=(result.layers[0].outerRadiusM-datumRadius)*1000
+        XCTAssertEqual(physicalOuterBuildMM,100.0,accuracy:1e-9)
+    }
 }
