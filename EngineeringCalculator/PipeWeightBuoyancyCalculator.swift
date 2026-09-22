@@ -23,7 +23,39 @@ struct PipeWeightBuoyancyResult {
     let submergedWeightKNPerM: Double
 }
 
+struct PipeLayerMaterialValidation: Identifiable, Hashable {
+    let id: UUID
+    let layerName: String
+    let materialName: String
+    let result: MaterialValidationResult
+    var canCalculate: Bool { result.canCalculate }
+}
+
+struct PipeWeightMaterialValidation: Hashable {
+    let layers: [PipeLayerMaterialValidation]
+    var issues: [MaterialValidationIssue] { layers.flatMap { $0.result.issues } }
+    var errors: [MaterialValidationIssue] { issues.filter { $0.severity == .error } }
+    var warnings: [MaterialValidationIssue] { issues.filter { $0.severity == .warning } }
+    var canCalculate: Bool { errors.isEmpty }
+}
+
 enum PipeWeightBuoyancyCalculator {
+    /// Pipe weight requires a valid density for every solid layer.
+    static func validateMaterials(construction: PipeConstruction) -> PipeWeightMaterialValidation {
+        let validations = construction.layers.map { layer in
+            PipeLayerMaterialValidation(
+                id: layer.id,
+                layerName: layer.name,
+                materialName: layer.material.name,
+                result: MaterialRequirementValidator.validate(
+                    material: layer.material,
+                    against: StandardMaterialRequirementSets.mass
+                )
+            )
+        }
+        return PipeWeightMaterialValidation(layers: validations)
+    }
+
     static func calculate(
         construction: PipeConstruction,
         gravity: Double = 9.80665
