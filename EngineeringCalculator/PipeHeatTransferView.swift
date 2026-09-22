@@ -27,24 +27,52 @@ struct PipeHeatTransferView: View {
     private struct TemperaturePoint:Identifiable{let id:Int;let diameterMM:Double;let temperatureC:Double;let label:String}
     private func temperaturePoints(_ result:PipeHeatTransferResult)->[TemperaturePoint]{guard let first=result.layers.first else{return []};var points:[TemperaturePoint]=[.init(id:0,diameterMM:first.innerRadiusM*2000,temperatureC:first.innerBoundaryTemperatureC,label:"Inside surface")];for (i,layer) in result.layers.enumerated(){points.append(.init(id:i+1,diameterMM:layer.outerRadiusM*2000,temperatureC:layer.outerBoundaryTemperatureC,label:i==result.layers.count-1 ? "Outside surface" : "After \(layer.name)"))};return points}
 
-    @ViewBuilder private var temperatureProfileSection:some View{
-        if let result=validated.result {
-            Section("Interface Temperature Profile") {
+    @ViewBuilder
+    private var temperatureProfileSection: some View {
+        if let result = validated.result {
+            Section {
                 Chart {
                     ForEach(temperaturePoints(result)) { point in
-                        LineMark(x:.value("Diameter (mm)",point.diameterMM),y:.value("Temperature (°C)",point.temperatureC))
-                        PointMark(x:.value("Diameter (mm)",point.diameterMM),y:.value("Temperature (°C)",point.temperatureC))
-                            .annotation(position:.top,alignment:.center){Text(point.temperatureC.formatted(.number.precision(.fractionLength(1)))).font(.caption2)}
+                        LineMark(
+                            x: .value("Diameter (mm)", point.diameterMM),
+                            y: .value("Temperature (°C)", point.temperatureC)
+                        )
+
+                        PointMark(
+                            x: .value("Diameter (mm)", point.diameterMM),
+                            y: .value("Temperature (°C)", point.temperatureC)
+                        )
+                        .annotation(position: .top, alignment: .center) {
+                            Text(
+                                point.temperatureC.formatted(
+                                    .number.precision(.fractionLength(1))
+                                )
+                            )
+                            .font(.caption2)
+                        }
                     }
                 }
                 .chartXAxisLabel("Diameter (mm)")
                 .chartYAxisLabel("Temperature (°C)")
-                .frame(minHeight:240)
+                .frame(minHeight: 240)
+
                 ForEach(temperaturePoints(result)) { point in
-                    LabeledContent(point.label){Text("\(point.diameterMM.formatted(.number.precision(.fractionLength(0...2)))) mm  •  \(point.temperatureC.formatted(.number.precision(.fractionLength(0...2)))) °C").monospacedDigit()}
+                    LabeledContent(point.label) {
+                        Text(
+                            "\(point.diameterMM.formatted(.number.precision(.fractionLength(0...2)))) mm  •  " +
+                            "\(point.temperatureC.formatted(.number.precision(.fractionLength(0...2)))) °C"
+                        )
+                        .monospacedDigit()
+                    }
                 }
+            } header: {
+                Text("Interface Temperature Profile")
             } footer: {
-                Text("Points show the solved temperatures at the inner surface, every physical layer interface, and the outside surface. The line connects interfaces across each coating or pipe layer.")
+                Text(
+                    "Points show the solved temperatures at the inner surface, " +
+                    "every physical layer interface, and the outside surface. " +
+                    "The line connects interfaces across each coating or pipe layer."
+                )
             }
         }
     }

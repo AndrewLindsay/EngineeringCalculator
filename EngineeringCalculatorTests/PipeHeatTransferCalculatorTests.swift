@@ -60,8 +60,8 @@ final class PipeHeatTransferCalculatorTests: XCTestCase {
         XCTAssertNil(validated.solverFailure)
         let result=try XCTUnwrap(validated.result)
         XCTAssertEqual(result.layers.count,2)
-        XCTAssertLessThanOrEqual(result.layers[1].innerBoundaryTemperatureC,60.0,accuracy:1e-6)
-        XCTAssertGreaterThanOrEqual(result.layers[1].outerBoundaryTemperatureC,20.0,accuracy:1e-6)
+        XCTAssertLessThanOrEqual(result.layers[1].innerBoundaryTemperatureC,60.0 + 1e-6)
+        XCTAssertGreaterThanOrEqual(result.layers[1].outerBoundaryTemperatureC,20.0 - 1e-6)
         XCTAssertGreaterThanOrEqual(result.layers[1].computationalCellCount,2)
     }
 
