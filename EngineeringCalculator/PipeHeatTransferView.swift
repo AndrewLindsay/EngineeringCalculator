@@ -27,7 +27,27 @@ struct PipeHeatTransferView: View {
     private struct TemperaturePoint:Identifiable{let id:Int;let diameterMM:Double;let temperatureC:Double;let label:String}
     private func temperaturePoints(_ result:PipeHeatTransferResult)->[TemperaturePoint]{guard let first=result.layers.first else{return []};var points:[TemperaturePoint]=[.init(id:0,diameterMM:first.innerRadiusM*2000,temperatureC:first.innerBoundaryTemperatureC,label:"Inside surface")];for (i,layer) in result.layers.enumerated(){points.append(.init(id:i+1,diameterMM:layer.outerRadiusM*2000,temperatureC:layer.outerBoundaryTemperatureC,label:i==result.layers.count-1 ? "Outside surface" : "After \(layer.name)"))};return points}
 
-    @ViewBuilder private var temperatureProfileSection:some View{if let result=validated.result{let points=temperaturePoints(result);Section("Interface Temperature Profile"){Chart(points){point in LineMark(x:.value("Diameter (mm)",point.diameterMM),y:.value("Temperature (°C)",point.temperatureC));PointMark(x:.value("Diameter (mm)",point.diameterMM),y:.value("Temperature (°C)",point.temperatureC)).annotation(position:.top,alignment:.center){Text(point.temperatureC.formatted(.number.precision(.fractionLength(1)))).font(.caption2)}}.chartXAxisLabel("Diameter (mm)").chartYAxisLabel("Temperature (°C)").frame(minHeight:240);ForEach(points){point in LabeledContent(point.label){Text("\(point.diameterMM.formatted(.number.precision(.fractionLength(0...2)))) mm  •  \(point.temperatureC.formatted(.number.precision(.fractionLength(0...2)))) °C").monospacedDigit()}}}footer:{Text("Points show the solved temperatures at the inner surface, every physical layer interface, and the outside surface. The line connects interfaces across each coating or pipe layer.")}}}
+    @ViewBuilder private var temperatureProfileSection:some View{
+        if let result=validated.result {
+            Section("Interface Temperature Profile") {
+                Chart {
+                    ForEach(temperaturePoints(result)) { point in
+                        LineMark(x:.value("Diameter (mm)",point.diameterMM),y:.value("Temperature (°C)",point.temperatureC))
+                        PointMark(x:.value("Diameter (mm)",point.diameterMM),y:.value("Temperature (°C)",point.temperatureC))
+                            .annotation(position:.top,alignment:.center){Text(point.temperatureC.formatted(.number.precision(.fractionLength(1)))).font(.caption2)}
+                    }
+                }
+                .chartXAxisLabel("Diameter (mm)")
+                .chartYAxisLabel("Temperature (°C)")
+                .frame(minHeight:240)
+                ForEach(temperaturePoints(result)) { point in
+                    LabeledContent(point.label){Text("\(point.diameterMM.formatted(.number.precision(.fractionLength(0...2)))) mm  •  \(point.temperatureC.formatted(.number.precision(.fractionLength(0...2)))) °C").monospacedDigit()}
+                }
+            } footer: {
+                Text("Points show the solved temperatures at the inner surface, every physical layer interface, and the outside surface. The line connects interfaces across each coating or pipe layer.")
+            }
+        }
+    }
 
     @ViewBuilder private var layerResultsSection:some View{if let result=validated.result{Section("Physical Layer Results"){ScrollView(.horizontal){Grid(alignment:.trailing,horizontalSpacing:12,verticalSpacing:6){GridRow{Text("Layer").frame(minWidth:130,alignment:.leading);Text("ID\n(mm)");Text("OD\n(mm)");Text("T in\n(°C)");Text("T out\n(°C)");Text("k eff\n(W/m·K)");Text("k min\n(W/m·K)");Text("k max\n(W/m·K)");Text("R\n(K/W)");Text("Cells")}.font(.caption2.bold()).multilineTextAlignment(.center);Divider().gridCellColumns(10);ForEach(result.layers){layer in GridRow{Text(layer.name).frame(minWidth:130,alignment:.leading);number(layer.innerRadiusM*2000,digits:2);number(layer.outerRadiusM*2000,digits:2);number(layer.innerBoundaryTemperatureC,digits:2);number(layer.outerBoundaryTemperatureC,digits:2);number(layer.thermalConductivityWMK,digits:5);number(layer.minimumConductivityWMK,digits:5);number(layer.maximumConductivityWMK,digits:5);number(layer.resistanceKPerW,digits:6);Text("\(layer.computationalCellCount)")}.font(.caption2)}}.monospacedDigit().padding(.vertical,4)};Text("k eff is the resistance-weighted conductivity reported for the physical layer. k min/max show the range resolved across its adaptive computational cells.").font(.caption).foregroundStyle(.secondary)}}}
 
