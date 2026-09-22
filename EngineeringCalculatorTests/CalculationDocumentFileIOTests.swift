@@ -118,6 +118,97 @@ final class CalculationDocumentFileIOTests: XCTestCase {
         XCTAssertEqual(try CalculationDocumentFileIO.read(from: url), original)
     }
 
+    func testProjectRoundTripPreservesCalculationOrderAndPerCaseMetadata() throws {
+        let firstID = UUID(uuidString: "F4000000-0000-0000-0000-000000000001")!
+        let secondID = UUID(uuidString: "F4000000-0000-0000-0000-000000000002")!
+        let first = SavedCalculation(
+            id: firstID, name: "Weight Case", calculatorID: "pipeWeightBuoyancy", calculatorSchemaVersion: 3,
+            createdAt: fixedDate, modifiedAt: fixedDate,
+            inputs: [SavedCalculationInput(id: "diameter", displayName: "Diameter", source: .literal(.number(300)), unitSymbol: "mm")],
+            outputs: [SavedCalculationOutput(id: "mass", displayName: "Mass", value: .number(299.464), unitSymbol: "kg/m")],
+            assumptions: ["Fully flooded"], notes: "Baseline weight case"
+        )
+        let second = SavedCalculation(
+            id: secondID, name: "Heat Case", calculatorID: "pipeHeatTransfer", calculatorSchemaVersion: 2,
+            createdAt: fixedDate, modifiedAt: fixedDate,
+            inputs: [SavedCalculationInput(id: "temperature", displayName: "Temperature", source: .literal(.number(80)), unitSymbol: "°C")],
+            outputs: [SavedCalculationOutput(id: "heatLoss", displayName: "Heat Loss", value: .number(125.5), unitSymbol: "W/m")],
+            assumptions: ["Steady state"], notes: "Thermal comparison case"
+        )
+        let original = CalculationDocument(kind: .project, title: "Mixed Calculator Project", createdAt: fixedDate, modifiedAt: fixedDate, calculations: [first, second])
+        let restored = try CalculationDocumentFileIO.document(from: CalculationDocumentFileIO.data(for: original))
+
+        XCTAssertEqual(restored.calculations.map(\.id), [firstID, secondID])
+        XCTAssertEqual(restored.calculations.map(\.calculatorID), ["pipeWeightBuoyancy", "pipeHeatTransfer"])
+        XCTAssertEqual(restored.calculations.map(\.calculatorSchemaVersion), [3, 2])
+        XCTAssertEqual(restored.calculations.map(\.notes), ["Baseline weight case", "Thermal comparison case"])
+        XCTAssertEqual(restored.calculations[0].inputs, first.inputs)
+        XCTAssertEqual(restored.calculations[1].outputs, second.outputs)
+    }
+
+    func testProjectStoresSharedEmbeddedMaterialOnce() throws {
+        let shared = try EmbeddedMaterial.fingerprinted(material())
+        let original = CalculationDocument(kind: .project, title: "Shared Material Project", createdAt: fixedDate, modifiedAt: fixedDate,
+                                           calculations: [calculation(), calculation(name: "Second Case")], embeddedMaterials: [shared])
+        let restored = try CalculationDocumentFileIO.document(from: CalculationDocumentFileIO.data(for: original))
+
+        XCTAssertEqual(restored.embeddedMaterials.count, 1)
+        XCTAssertEqual(restored.embeddedMaterials[0], shared)
+        XCTAssertEqual(restored.calculations.count, 2)
+    }
+
+    func testProjectAllowsDifferentMaterialsWithSameDisplayName() throws {
+        let first = EngineeringMaterial(
+            id: UUID(uuidString: "F5000000-0000-0000-0000-000000000001")!, name: "Project Test Material", category: "Test",
+            densityKgM3: 2400, thermalConductivityWMK: 1.5, source: "Fixture A"
+        )
+        let second = EngineeringMaterial(
+            id: UUID(uuidString: "F5000000-0000-0000-0000-000000000002")!, name: "Project Test Material", category: "Test",
+            densityKgM3: 3000, thermalConductivityWMK: 2.0, source: "Fixture B"
+        )
+        let original = CalculationDocument(kind: .project, title: "Same Name Materials", createdAt: fixedDate, modifiedAt: fixedDate,
+                                           calculations: [calculation()], embeddedMaterials: [try .fingerprinted(first), try .fingerprinted(second)])
+        let restored = try CalculationDocumentFileIO.document(from: CalculationDocumentFileIO.data(for: original))
+
+        XCTAssertEqual(restored.embeddedMaterials.count, 2)
+        XCTAssertEqual(Set(restored.embeddedMaterials.map(\.id)), Set([first.id, second.id]))
+        XCTAssertEqual(restored.embeddedMaterials.map { $0.material.name }, ["Project Test Material", "Project Test Material"])
+        XCTAssertEqual(restored.embeddedMaterials.map { $0.material.densityKgM3 }, [2400, 3000])
+    }
+
+    func testProjectRoundTripPreservesCrossCalculationAndProjectParameterSources() throws {
+        let sourceID = UUID(uuidString: "F6000000-0000-0000-0000-000000000001")!
+        let consumerID = UUID(uuidString: "F6000000-0000-0000-0000-000000000002")!
+        let parameterID = UUID(uuidString: "F6000000-0000-0000-0000-000000000003")!
+        let source = SavedCalculation(
+            id: sourceID, name: "Source", calculatorID: "sourceCalculator", createdAt: fixedDate, modifiedAt: fixedDate,
+            outputs: [SavedCalculationOutput(id: "outsideDiameter", displayName: "Outside Diameter", value: .number(426), unitSymbol: "mm")]
+        )
+        let consumer = SavedCalculation(
+            id: consumerID, name: "Consumer", calculatorID: "consumerCalculator", createdAt: fixedDate, modifiedAt: fixedDate,
+            inputs: [
+                SavedCalculationInput(id: "diameter", displayName: "Diameter", source: .calculationOutput(calculationID: sourceID, outputID: "outsideDiameter"), unitSymbol: "mm"),
+                SavedCalculationInput(id: "ambientTemperature", displayName: "Ambient Temperature", source: .projectParameter(parameterID), unitSymbol: "°C")
+            ]
+        )
+        let original = CalculationDocument(kind: .project, title: "Linked Project", createdAt: fixedDate, modifiedAt: fixedDate, calculations: [source, consumer])
+        let restored = try CalculationDocumentFileIO.document(from: CalculationDocumentFileIO.data(for: original))
+
+        XCTAssertEqual(restored.calculations[1].inputs, consumer.inputs)
+    }
+
+    func testProjectSaveReopenResaveIsDeterministic() throws {
+        let original = CalculationDocument(kind: .project, title: "Deterministic Project", createdAt: fixedDate, modifiedAt: fixedDate,
+                                           calculations: [calculation(), calculation(name: "Second Case")],
+                                           embeddedMaterials: [try EmbeddedMaterial.fingerprinted(material())], notes: "Regression fixture")
+        let firstEncoding = try CalculationDocumentFileIO.data(for: original)
+        let reopened = try CalculationDocumentFileIO.document(from: firstEncoding)
+        let secondEncoding = try CalculationDocumentFileIO.data(for: reopened)
+
+        XCTAssertEqual(secondEncoding, firstEncoding)
+        XCTAssertEqual(reopened, original)
+    }
+
     func testReadingContentWithMismatchedExtensionIsRejected() throws {
         let original = project()
         let url = temporaryURL("pretending-to-be-calculation.eccalc")
