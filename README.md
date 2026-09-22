@@ -11,7 +11,7 @@ A modular SwiftUI engineering-calculation app for iOS and macOS.
 
 ### Verified checkpoint
 
-The last formally verified checkpoint is **66 tests passed, 0 failures**.
+The current formally verified checkpoint is **89 tests passed, 0 failures**.
 
 Completed and verified:
 
@@ -26,48 +26,48 @@ Completed and verified:
 - portable synthetic validation library in `TestData/EngineeringCalculator_Validation_Test_Materials.ecmaterials`;
 - Pipe Weight & Buoyancy integrated with density validation;
 - invalid/missing density blocks results instead of silently becoming zero;
-- automated Pipe Weight material-validation regression tests.
+- automated Pipe Weight material-validation regression tests;
+- Multilayer Pipe Heat Transfer integrated with the shared Materials Library and `validatedCalculate()`;
+- adaptive subdivision of temperature-dependent layers with convergence diagnostics;
+- physical-layer-aware thermal-conductivity range validation, so a limited-range material is accepted when its solved local layer temperatures are valid and blocked when they are not;
+- total resistance, heat rate, heat rate per length, UA and overall U on inside/outside area bases;
+- physical layer results including interface temperatures, effective/min/max conductivity, resistance and computational-cell count;
+- report-oriented interface-temperature chart with proportional physical-layer shading, interface markers and legend;
+- chart radial-build datum fixed at 0 mm on the internal pipe surface;
+- regression coverage for radial-build geometry and interface-temperature continuity.
 
-### Work in progress — multilayer pipe heat transfer
+## Multilayer pipe heat transfer — VERIFIED
 
-`PipeHeatTransferCalculator.swift` and `PipeHeatTransferCalculatorTests.swift` have been added to the branch but are **not yet part of the verified checkpoint**.
-
-The initial model implements steady-state radial conduction through concentric cylindrical layers:
+The model implements steady-state radial conduction through concentric cylindrical layers:
 
 `R_i = ln(r_o/r_i) / (2π k_i L)`
 
 `Q = (T_inside - T_outside) / ΣR_i`
 
-Design decisions for this calculator:
+Temperature-dependent conductivity is resolved adaptively. Thick or strongly temperature-dependent physical layers may be subdivided into computational cells until the conductivity/heat-rate solution converges. The UI continues to report physical engineering layers rather than exposing solver cells as separate coatings.
 
-- it uses `validatedCalculate()` from the start;
-- every solid layer declares thermal conductivity `k` as required;
-- unrelated missing properties such as density do not block conduction calculations;
-- temperature-dependent `k` is supported through `MaterialPropertyResolver`;
-- the first implementation evaluates temperature-dependent `k` at the arithmetic mean of the specified inside/outside boundary temperatures;
-- layer-specific iterative property evaluation is a planned refinement, not yet implemented.
+Material property validity is checked against the solved temperature range of each physical layer. This allows, for example, a material with data only over a cold range to be used as an outer layer when that layer actually remains within the supported range.
 
-Nine heat-transfer tests have been written for analytical single/two-layer resistance, missing `k`, property specificity, tabulated/interpolated `k`, out-of-range rejection, temperature drops and length scaling.
+The temperature-profile chart uses radial build from the internal pipe surface as its horizontal coordinate. Physical layer widths therefore correspond directly to coating/pipe thicknesses, while the numerical layer table retains actual ID/OD values.
 
 ## Immediate to-do list
 
-1. Add `PipeHeatTransferCalculator.swift` to the application target and `PipeHeatTransferCalculatorTests.swift` to the test target.
-2. Run the complete suite. **Next target: 75/75 tests passing.**
-3. Build the SwiftUI Heat Transfer calculator on top of the verified engine.
-4. Manually test constant and temperature-dependent `k` using the validation-material library.
-5. Add UI/integration regression coverage.
-6. Refine temperature-dependent conduction to use layer-specific iterative mean temperatures.
-7. Add inside/outside convection resistance and ambient/bulk-fluid boundary conditions.
-8. Re-run macOS and iOS integration/regression tests.
-9. Decide whether the next material-aware calculator should exercise transient thermal properties (`ρ`, `Cp`, `k`) or mechanical properties (`E`, `ν`).
-
-The previously planned comparison PDF/print/CSV work remains on the roadmap, but calculator/material integration is the current priority.
+1. Treat **89/89 tests passing** as the current regression baseline.
+2. Perform a final macOS/iPhone visual regression of the heat-transfer calculator, including one-layer and multi-layer cases, light/dark mode and narrow-screen legend/layout behaviour.
+3. Decide whether `feature/material-requirement-validation` is ready to merge after the visual regression.
+4. Add inside/outside convection resistance and bulk-fluid/ambient boundary conditions as the next heat-transfer enhancement if desired.
+5. Consider an advanced temperature-profile view showing adaptive computational-cell temperatures while retaining physical layers as the normal/reporting view.
+6. Add report/export support for calculation inputs, material traceability, validation status, numerical results and the temperature-profile chart.
+7. Select the next material-aware calculation to exercise a different property set — transient thermal (`ρ`, `Cp`, `k`) or mechanical (`E`, `ν`) are the leading candidates.
+8. Continue the previously planned material-comparison PDF/print/CSV work when calculator/material integration is sufficiently mature.
 
 ## Material validation principle
 
 Calculators must explicitly declare the material properties they require. Before results are evaluated, selected materials must be validated against those requirements. Missing or unresolvable required data must produce an actionable warning and block the result; it must not be silently replaced with zero or an arbitrary default.
 
 New material-aware calculators should expose a safe `validatedCalculate()` entry point so callers cannot accidentally bypass validation.
+
+For temperature-dependent calculations, validity should be assessed against the temperatures actually experienced by each physical material where the solver can determine them, rather than rejecting a material solely because a global system temperature lies outside its range.
 
 ## Current pipe weight convention
 
@@ -95,7 +95,7 @@ The current branch should be:
 feature/material-requirement-validation
 ```
 
-Run the complete regression suite with **⌘U** before and after substantial changes.
+Run the complete regression suite with **⌘U** before and after substantial changes. The current expected result is **89 tests passed, 0 failures**.
 
 When a tested local change needs committing manually:
 
