@@ -6,6 +6,11 @@ extension UTType {
     static var engineeringCalculation: UTType {
         UTType(exportedAs: "com.andrewlindsay.engineeringcalculator.calculation", conformingTo: .json)
     }
+
+    /// Portable Engineering Calculator project containing one or more saved calculations.
+    static var engineeringProject: UTType {
+        UTType(exportedAs: "com.andrewlindsay.engineeringcalculator.project", conformingTo: .json)
+    }
 }
 
 /// SwiftUI file-document wrapper around the versioned CalculationDocument payload.
