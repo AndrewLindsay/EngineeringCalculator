@@ -1,21 +1,63 @@
 # Engineering Calculator — Development Status & Roadmap
 
 **Last updated:** 22 September 2026  
+**Status:** **HOLD POINT — intentional development pause**  
 **Active branch:** `feature/portable-calculation-documents`  
 **Current focus:** portable, self-contained saved calculations and calculation projects  
-**Last verified automated checkpoint:** **89 tests passed, 0 failures**
+**Last user-verified automated checkpoint:** **168 tests passed, 0 failures**
 
 Read `AGENTS.md` first, then this file when resuming development.
 
-## Resume here
+# RESUME HERE
 
-1. Switch to `feature/portable-calculation-documents`.
+This is the authoritative restart point.
+
+1. Switch to / confirm `feature/portable-calculation-documents`.
 2. Run `git pull`, `git status`, and `git branch --show-current`.
 3. Build the macOS target and run the complete suite with **⌘U**.
-4. Expected baseline before persistence work: **89/89 tests passing**.
-5. Implement portable calculation persistence in small independently testable commits. Do not add project UI before the persistence model, material embedding and reconciliation behaviour are covered by tests.
+4. Expected regression baseline: **168/168 tests passing**.
+5. Resume with the **project workspace `.ecproject` end-to-end save/open/reopen workflow** described below.
+6. Do not restart from the earlier 89-test material-framework checkpoint or repeat already completed standalone-document work.
 
-## Stable framework
+## Hold-point summary
+
+The portable-document architecture has progressed from the original persistence foundation through standalone calculation integration and into project workspace support.
+
+User-verified at this hold point:
+
+- **168 tests passed, 0 failures**;
+- standalone Pipe Weight & Buoyancy `.eccalc` save/export and open work;
+- multi-layer Pipe Weight & Buoyancy cases survive standalone save/open, including the previously observed two-material-layer restoration defect;
+- portable deterministic regression cases exist so the same inputs can be reused reliably for comparisons between builds;
+- project workspace code is present and builds/tests after adding the missing `.engineeringProject` UTType;
+- `.ecproject` is the project-document extension and `com.andrewlindsay.engineeringcalculator.project` is the project UTType identifier.
+
+The last code change immediately before this hold point added the missing project UTType used by `ProjectWorkspaceView`. After that change the user ran the complete test suite and reported **168 tests passed**.
+
+## Exact next development task — project workspace end-to-end validation
+
+Start here when development resumes.
+
+Exercise the project workflow as a real user and then add/fix regression coverage as required:
+
+1. Create a new project.
+2. Add multiple saved calculations to it, preferably including both Pipe Weight & Buoyancy and Pipe Heat Transfer where supported by the current project UI/adapters.
+3. Use multiple materials, including at least one material shared by more than one calculation, so project material deduplication is exercised.
+4. Save/export the project as `.ecproject`.
+5. Close the project/workspace or otherwise return to a clean state.
+6. Reopen/import the saved `.ecproject`.
+7. Confirm all calculations are present and remain individually identifiable.
+8. Confirm persisted inputs, units, outputs and calculation IDs survive the round trip.
+9. Confirm all material selections/references survive the round trip.
+10. Confirm each embedded project material is stored once and shared calculations reference it by UUID rather than creating unnecessary duplicate definitions.
+11. Confirm the reopened calculations reproduce the saved engineering results within the defined regression tolerances.
+12. Confirm opening the project does not silently overwrite conflicting local-library material definitions.
+13. Add deterministic automated tests for any project-workspace behaviour not already covered.
+14. Re-run the full suite and establish the next formal checkpoint before moving on.
+
+Do not treat the project UI phase as complete until the above end-to-end workflow is demonstrated.
+
+## Stable framework already established
 
 The shared Materials Library supports built-in/user materials, categories, editing, scalar and temperature-dependent properties, traceability, local persistence, portable `.ecmaterial` / `.ecmaterials` interchange and material comparison.
 
@@ -27,13 +69,7 @@ The reusable material requirement API provides required/optional properties, req
 
 For temperature-dependent calculations, use solved local physical-layer temperatures for range validation when available. Do not reject an otherwise valid material merely because a global system temperature lies outside its property range.
 
-## Current automated checkpoint
-
-**89 tests passed, 0 failures — user verified on 22 September 2026.**
-
-This is the known-good baseline from commit `cde0448` (`Update development status to 89-test heat transfer checkpoint`) before portable calculation persistence development began.
-
-## Portable Calculation Documents — ACTIVE PHASE
+## Portable Calculation Documents — architecture and completed direction
 
 ### Architectural objective
 
@@ -41,100 +77,53 @@ A saved standalone calculation or project must be wholly transportable and self-
 
 The material library is a resource for creating and deliberately updating calculations. Embedded material definitions are part of the saved engineering record and are authoritative for reproducing the saved state.
 
-### Phase 1 — persistence foundation
+### Persistence foundation
 
-Implement and test:
+The persistence model is versioned and uses stable calculation, input and output identifiers. Persistence representations are separate from arbitrary runtime Swift calculator objects. The input/value architecture is intended to remain extensible for future project-parameter references and calculation-output references rather than assuming every future input is permanently a literal `Double`.
 
-- `CalculationDocument` / document container model;
-- `SavedCalculation` with stable UUID;
-- explicit document/schema versioning from the first format version;
-- stable calculator type/schema identifier;
-- stable identifiers for persisted inputs and outputs, so future calculation chaining does not depend on display labels;
-- creation/modification metadata and optional notes;
-- persistence of inputs, selected units, outputs, assumptions and validation information needed to reproduce/audit a calculation;
-- stable persistence representations rather than serialising arbitrary runtime Swift calculator objects;
-- encode/decode round-trip tests.
+Deterministic portable regression fixtures have been added so identical saved inputs can be used for reliable comparison between builds.
 
-The persistence value model must not assume every future input is permanently a literal `Double`. It must leave room for future project-parameter references and calculation-output references without requiring the document architecture to be replaced.
+### Self-contained embedded materials
 
-### Phase 2 — self-contained embedded materials
+Documents embed the complete material definitions required by their calculations rather than only the properties immediately consumed by a calculator. Persistent material UUIDs and canonical material fingerprints support identity, comparison and portability.
 
-Every document embeds the complete definition of every material needed by its calculations, including all available scalar and temperature-dependent properties, tables, equations/coefficients, units, validity/range information, references/provenance and relevant metadata.
+A standalone calculation contains the embedded definitions it needs. A project is designed to store each embedded material once and allow calculations to reference that project material by UUID.
 
-Rules:
+### Material reconciliation
 
-- preserve the material's persistent UUID across machines;
-- do not save only the subset of properties currently used by the calculation;
-- add a canonical content fingerprint/hash for comparison and integrity checks;
-- a standalone calculation contains its required embedded materials;
-- a project stores each embedded material once and calculations reference the project material by UUID;
-- opening a calculation must not require the local material library to contain the material.
+The intended and tested design direction remains:
 
-### Phase 3 — material reconciliation
+1. UUID absent locally: embedded material can be imported as a new library material while retaining identity.
+2. UUID present and content identical: reuse without unnecessary duplication.
+3. UUID present but content differs: record a conflict rather than silently overwriting either definition.
+4. Historical calculations continue to use their embedded definition unless the user deliberately adopts/updates another definition.
+5. Imported data must not gain protected built-in status merely because incoming metadata claims it.
 
-When opening/importing a document, reconcile each embedded material with the local library by UUID and canonical content fingerprint:
+### Standalone calculations — verified integration
 
-1. UUID absent locally: import the embedded material as a new library material, retaining its UUID.
-2. UUID present and content identical: reuse the existing local material and do not create a duplicate.
-3. UUID present but content differs: record a material conflict. Do not silently overwrite the embedded material or the local library material.
-4. A conflicting saved calculation initially continues to use its embedded definition so its historical result remains reproducible.
-5. Provide later explicit compare/adopt/update actions; merely opening a document must not mutate an existing local material definition.
+Standalone calculations use `.eccalc`.
 
-Imported documents must never regain protected built-in status merely because imported metadata claims it.
+Pipe Weight & Buoyancy has been exercised through the standalone document UI. A regression was found where a saved case containing two additional material layers reopened with only one layer visible. The restoration path was corrected and regression coverage added. The user subsequently verified that a case containing UNS S32760 plus Concrete reopened with both additional layers present and the layer stack/results restored.
 
-### Phase 4 — projects / calculation suites
+Standalone open/save therefore forms part of the current known-good checkpoint and should not be reimplemented when development resumes.
 
-Support both standalone calculations and projects. A project may contain multiple calculations and optional logical groups/folders plus project metadata such as name, project number, client, description, engineer, notes and creation/modification dates.
+### Project calculations — current active boundary
 
-Project embedded materials are deduplicated. Multiple calculations using the same material UUID reference the same embedded project definition.
+Projects use `.ecproject`.
 
-Future project-level shared parameters are anticipated. The first persistence format must therefore be extensible to support shared pressure, temperature, geometry, fluid/environment values etc. without replacing the saved-calculation model.
+Project persistence/container and workspace work has begun. `ProjectWorkspaceView` uses a project-specific Uniform Type Identifier. A build failure exposed that `.engineeringProject` had not yet been defined; this was corrected by adding:
 
-### Phase 5 — document UI
+`com.andrewlindsay.engineeringcalculator.project`
 
-After the persistence and reconciliation layers are verified, add appropriate macOS/iOS document/library UI for operations such as New, Open, Save, Save As, Duplicate, Rename, Delete and Import/Export.
+as the project UTType, conforming to JSON. The full regression suite then passed **168/168**.
 
-The same portable document format should be usable on macOS and iOS.
-
-Candidate library organisation:
-
-- Recent;
-- Projects;
-- Standalone Calculations.
-
-### Phase 6 — robustness, compatibility and migration
-
-Permanent regression coverage should include:
-
-- save/encode/decode round trip;
-- save, close and reopen result reproduction;
-- transfer to a clean material library/install;
-- import of a genuinely new material;
-- existing identical material reuse without duplication;
-- same UUID/different-content conflict detection;
-- no silent local-library overwrite;
-- multiple calculations sharing one embedded material;
-- embedded material deduplication;
-- complete scalar, table and equation/coefficient material preservation;
-- temperature-dependent property preservation;
-- unit preservation/conversion behaviour;
-- missing/corrupt embedded material handling;
-- corrupt calculation/document data handling;
-- older schema migration;
-- safe handling of unknown/newer schema versions;
-- numerical result reproduction within defined tolerances.
-
-A permanent portability regression requirement is:
-
-> A calculation transferred to a clean EngineeringCalculator installation must reproduce the original engineering result without requiring access to the originating material library.
+**This is where development is paused.** The next task is not another architectural redesign; it is the concrete end-to-end project save/reopen validation described at the top of this document.
 
 ## Compatibility decisions — preserve unless deliberately superseded
 
-The following decisions exist specifically to avoid future architectural backtracking. If one is deliberately changed, preserve the old decision in Git history and explain the reason in the changing commit.
-
 ### Future project parameters
 
-Persisted calculation inputs must be extensible beyond literal values so they can later reference shared project parameters. Do not build the initial format around `[String: Double]` or another representation that would force a persistence redesign.
+Persisted calculation inputs must remain extensible beyond literal values so they can later reference shared project parameters. Do not replace the persistence model with `[String: Double]` or another representation that would force a redesign.
 
 ### Future calculation chaining
 
@@ -152,26 +141,13 @@ An embedded material is not merely a cache of the current library material. It i
 
 Do not introduce macOS-only persistence semantics. The document representation should remain portable between macOS and iOS even if the surrounding UI differs.
 
-## Development sequence from the 89-test baseline
-
-1. Persistence value/document model and schema versioning.
-2. Stable calculation/input/output identifiers.
-3. Encode/decode and round-trip tests.
-4. Complete embedded material representation.
-5. Canonical material fingerprinting.
-6. Material reconciliation and conflict handling.
-7. Clean-install portability/result-reproduction tests.
-8. Standalone calculation save/open integration.
-9. Project container and material deduplication.
-10. Project/standalone document UI.
-11. Shared project parameters and calculation chaining in later phases after the base persistence format is proven.
-12. Resume calculator-library expansion after persistence is stable.
-
 ## Previously verified material-aware calculators
 
 ### Pipe Weight & Buoyancy
 
 Density is required for every solid layer. Missing density is shown explicitly, identifies the failing material/layer and blocks numerical results. Materials missing unrelated properties remain valid if density exists. A safe `validatedCalculate()` API exists, while the raw calculation remains for legacy/numerical regression use.
+
+The standalone persistence adapter preserves pipe geometry, fluid values, all additional material layers, outputs and embedded materials. Multi-layer save/reopen behaviour is part of the current verified checkpoint.
 
 ### Multilayer Pipe Heat Transfer
 
@@ -179,12 +155,16 @@ Steady-state radial conduction through concentric cylindrical layers is implemen
 
 The heat-transfer profile uses radial build measured from the internal pipe surface; physical layer widths are proportional to actual radial thickness, and chart bands represent physical material layers rather than adaptive computational cells.
 
-Future heat-transfer enhancements such as inside/outside convection films remain valid roadmap items, but they are deferred until portable calculation persistence is established.
+Portable calculation adapter/regression coverage has been added for this calculator as part of the persistence work.
 
-## Deferred roadmap — still compatible
+## Deferred roadmap — resume only after project documents are stable
 
-These tasks remain valid and are not superseded by the persistence work:
+These tasks remain valid and are not superseded:
 
+- project metadata/groups/folders refinements;
+- shared project parameters;
+- calculation chaining using stable input/output identifiers;
+- schema migration and safe unknown/newer-schema handling;
 - final macOS/iPhone heat-transfer visual regression and light/dark mode checks;
 - inside/outside convection films and bulk-fluid/ambient temperatures;
 - optional adaptive computational-cell chart detail;
@@ -192,11 +172,37 @@ These tasks remain valid and are not superseded by the persistence work:
 - further material-aware calculators, including transient thermal (`ρ`, `Cp`, `k`) and linear-elastic/mechanical (`E`, `ν`);
 - material-comparison PDF/print/CSV work.
 
-No current portable-document requirement contradicts these goals. Persistence is intentionally being implemented first so these later features can use a stable saved engineering record rather than introducing incompatible storage mechanisms.
+## Permanent portability regression requirements
+
+Regression coverage should continue to protect:
+
+- save/encode/decode round trip;
+- save, close and reopen result reproduction;
+- transfer to a clean material library/install;
+- import of genuinely new materials;
+- identical material reuse without duplication;
+- same UUID/different-content conflict detection;
+- no silent local-library overwrite;
+- multiple calculations sharing one embedded material;
+- embedded material deduplication;
+- complete scalar, table and equation/coefficient material preservation;
+- temperature-dependent property preservation;
+- unit preservation/conversion behaviour;
+- missing/corrupt embedded material handling;
+- corrupt calculation/document data handling;
+- older schema migration;
+- safe handling of unknown/newer schema versions;
+- numerical result reproduction within defined tolerances.
+
+Permanent rule:
+
+> A calculation transferred to a clean EngineeringCalculator installation must reproduce the original engineering result without requiring access to the originating material library.
 
 ## Testing philosophy
 
-Prefer deterministic synthetic materials with analytically simple answers. Every material-aware calculator should test required properties present/missing, unrelated missing properties, temperature requirements/ranges, multiple materials, recovery after replacement and at least one independent numerical regression case.
+Prefer deterministic synthetic materials and analytically simple answers. The portable regression cases should use fixed, known inputs so build-to-build comparisons are meaningful and repeatable.
+
+Every material-aware calculator should test required properties present/missing, unrelated missing properties, temperature requirements/ranges, multiple materials, recovery after replacement and at least one independent numerical regression case.
 
 Persistence tests should additionally verify identity, portability, reproducibility, conflict safety, schema compatibility and failure behaviour. Never silently repair or substitute engineering data merely to make a saved calculation load.
 
@@ -209,26 +215,14 @@ Persistence tests should additionally verify identity, portability, reproducibil
 - Invalid materials may be selectable so validation can explain what is missing; invalid calculations must be blocked rather than silently corrected.
 - Heat-transfer charts use the internal pipe surface as the zero radial-build datum; actual diameters belong in the numerical layer table.
 - Heat-transfer chart bands represent physical material layers, not adaptive computational cells.
+- Standalone Pipe Weight & Buoyancy restoration must preserve every additional layer, not merely the first.
+- Project material storage should deduplicate shared definitions while calculations retain stable UUID references.
 
 ## Git/versioning policy
 
-Git history is part of the engineering/development record. Preserve enough information to determine what changed, why it changed and what behaviour was expected at that checkpoint.
+Git history is part of the engineering/development record. Preserve enough information to determine what changed, why it changed and what behaviour was expected at each checkpoint.
 
-Use small meaningful commits for persistence work rather than one large final commit. Tests for deliberately changed behaviour should be added/updated in the same logical commit, with the reason documented.
-
-Suggested commit progression:
-
-1. `Add calculation persistence data model and schema versioning`
-2. `Add self-contained embedded material definitions`
-3. `Add material UUID and content fingerprint reconciliation`
-4. `Add material conflict detection without library overwrite`
-5. `Add calculation save/load round-trip tests`
-6. `Add clean-install portable calculation tests`
-7. `Add project calculation container and material deduplication`
-8. `Add standalone calculation document UI`
-9. `Add project document UI`
-
-Before and after substantial changes run the complete suite with **⌘U**. The starting expected result on this branch is **89 tests passed, 0 failures**.
+Use small meaningful commits. Tests for deliberately changed behaviour should be added/updated in the same logical change where practical.
 
 Normal workflow:
 
@@ -243,4 +237,10 @@ git commit -m "Description of changes"
 git push
 ```
 
-**Current formal checkpoint before persistence implementation: 89/89.**
+Before and after substantial changes run the complete suite with **⌘U**.
+
+# CURRENT HOLD POINT
+
+**Branch:** `feature/portable-calculation-documents`  
+**Regression baseline:** **168/168 tests passed**  
+**Next task:** **End-to-end `.ecproject` project workspace save → close → reopen validation with multiple calculations and shared embedded materials, followed by permanent regression coverage.**
