@@ -11,6 +11,9 @@ struct PipeWeightBuoyancyView: View {
     @State private var extraLayers: [EditableLayer] = []
     @State private var showDetails = false
     @State private var showingAddLayer = false
+    @State private var showingCalculationExporter = false
+    @State private var calculationExportDocument: StandaloneCalculationFileDocument?
+    @State private var calculationSaveError: String?
 
     enum DiameterMode: String, CaseIterable, Identifiable {
         case diameter = "Internal Diameter"
@@ -65,10 +68,49 @@ struct PipeWeightBuoyancyView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Pipe Weight & Buoyancy")
+        .toolbar {
+            ToolbarItem {
+                Button { saveStandaloneCalculation() } label: {
+                    Label("Save Calculation…", systemImage: "square.and.arrow.down")
+                }
+                .disabled(result == nil)
+            }
+        }
         .onAppear { initialisePipeMaterialSelection() }
         .onChange(of: materialStore.steelMaterials.map(\.id)) { _, _ in initialisePipeMaterialSelection() }
         .sheet(isPresented: $showingAddLayer) {
             NavigationStack { AddPipeLayerView { m, t in extraLayers.append(EditableLayer(material: m, thicknessMM: t)) }.environmentObject(materialStore) }
+        }
+        .fileExporter(
+            isPresented: $showingCalculationExporter,
+            document: calculationExportDocument,
+            contentType: .engineeringCalculation,
+            defaultFilename: calculationExportDocument.map { CalculationDocumentFileType.suggestedFilename(for: $0.document) }
+        ) { outcome in
+            if case let .failure(error) = outcome { calculationSaveError = error.localizedDescription }
+        }
+        .alert("Save Calculation Failed", isPresented: Binding(
+            get: { calculationSaveError != nil },
+            set: { if !$0 { calculationSaveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { calculationSaveError = nil }
+        } message: {
+            Text(calculationSaveError ?? "")
+        }
+    }
+
+    private func saveStandaloneCalculation() {
+        guard let result else { return }
+        do {
+            let document = try PipeWeightBuoyancyPersistence.makeDocument(
+                name: "Pipe Weight & Buoyancy",
+                construction: pipeConstruction,
+                result: result
+            )
+            calculationExportDocument = StandaloneCalculationFileDocument(document: document)
+            showingCalculationExporter = true
+        } catch {
+            calculationSaveError = error.localizedDescription
         }
     }
 
