@@ -10,6 +10,8 @@ struct ProjectLibraryView: View {
     @State private var renameText = ""
     @State private var errorMessage: String?
     @State private var pendingNewProject: CalculationDocument?
+    @State private var pendingExistingEntry: ProjectLibraryEntry?
+    @State private var duplicateImport: (document: CalculationDocument, entry: ProjectLibraryEntry)?
 
     var body: some View {
         List {
@@ -38,7 +40,12 @@ struct ProjectLibraryView: View {
             }
         }
         .navigationTitle("Projects")
-        .navigationDestination(isPresented: Binding(get: { pendingNewProject != nil }, set: { if !$0 { pendingNewProject = nil } })) { if let pendingNewProject { ProjectWorkspaceView(initialDocument: pendingNewProject) } }
+        .navigationDestination(isPresented: Binding(get: { pendingNewProject != nil }, set: { if !$0 { pendingNewProject = nil } })) {
+            if let pendingNewProject { ProjectWorkspaceView(initialDocument: pendingNewProject) }
+        }
+        .navigationDestination(isPresented: Binding(get: { pendingExistingEntry != nil }, set: { if !$0 { pendingExistingEntry = nil } })) {
+            if let pendingExistingEntry { CataloguedProjectLoaderView(entry: pendingExistingEntry) }
+        }
         .alert("New Project", isPresented: $showingNewProject) {
             TextField("Project name", text: $newProjectName)
             Button("Cancel", role: .cancel) { }
@@ -49,14 +56,27 @@ struct ProjectLibraryView: View {
             Button("Cancel", role: .cancel) { renameEntry = nil }
             Button("Rename") { renameProjectFromLibrary() }.disabled(renameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } message: { Text("Renaming changes the project title stored inside the project. It does not rename the .ecproject file.") }
+        .alert("Project Already in Library", isPresented: Binding(get: { duplicateImport != nil }, set: { if !$0 { duplicateImport = nil } })) {
+            Button("Open Existing Project") { openExistingDuplicate() }
+            Button("Create Independent Copy") { createIndependentCopy() }
+            Button("Cancel", role: .cancel) { duplicateImport = nil }
+        } message: {
+            Text("This file has the same project identity as ‘\(duplicateImport?.entry.title ?? "")’. Opening it again would create two references to the same project. Open the existing project or create a new independent copy with its own project identity.")
+        }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.engineeringProject], allowsMultipleSelection: false) { result in importProject(result) }
         .alert("Project Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("OK", role: .cancel) { errorMessage = nil } } message: { Text(errorMessage ?? "") }
     }
 
-    private func createProject() { let cleaned = newProjectName.trimmingCharacters(in: .whitespacesAndNewlines); guard !cleaned.isEmpty else { return }; pendingNewProject = ProjectWorkspaceModel(title: cleaned).document }
+    private func createProject() {
+        let cleaned = newProjectName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        pendingNewProject = ProjectWorkspaceModel(title: cleaned).document
+    }
 
     private func renameProjectFromLibrary() {
-        guard let entry = renameEntry else { return }; let cleaned = renameText.trimmingCharacters(in: .whitespacesAndNewlines); guard !cleaned.isEmpty else { return }
+        guard let entry = renameEntry else { return }
+        let cleaned = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
         do {
             let url = try projectLibrary.resolvedURL(for: entry)
             let access = url.startAccessingSecurityScopedResource()
@@ -73,7 +93,44 @@ struct ProjectLibraryView: View {
     }
 
     private func importProject(_ result: Result<[URL], Error>) {
-        do { guard let url = try result.get().first else { return }; let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; let data = try Data(contentsOf: url); let document = try CalculationDocumentFileIO.document(from: data); guard document.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension) }; projectLibrary.register(document: document, at: url) } catch { errorMessage = error.localizedDescription }
+        do {
+            guard let url = try result.get().first else { return }
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let document = try CalculationDocumentFileIO.document(from: data)
+            guard document.kind == .project else {
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension)
+            }
+
+            if let existing = projectLibrary.entry(forProjectID: document.id) {
+                duplicateImport = (document, existing)
+                return
+            }
+            projectLibrary.register(document: document, at: url)
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    private func openExistingDuplicate() {
+        pendingExistingEntry = duplicateImport?.entry
+        duplicateImport = nil
+    }
+
+    private func createIndependentCopy() {
+        guard let source = duplicateImport?.document else { return }
+        let now = Date()
+        pendingNewProject = CalculationDocument(
+            id: UUID(),
+            documentFormatVersion: source.documentFormatVersion,
+            kind: .project,
+            title: "\(source.title) Copy",
+            createdAt: now,
+            modifiedAt: now,
+            calculations: source.calculations,
+            embeddedMaterials: source.embeddedMaterials,
+            notes: source.notes
+        )
+        duplicateImport = nil
     }
 }
 
@@ -92,6 +149,7 @@ private struct CataloguedProjectLoaderView: View {
             let data = try Data(contentsOf: url)
             let decoded = try CalculationDocumentFileIO.document(from: data)
             guard decoded.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension) }
+            projectLibrary.refresh(entry, with: decoded)
             document = decoded
         } catch { errorMessage = error.localizedDescription }
     }
