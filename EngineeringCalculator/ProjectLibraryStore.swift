@@ -2,6 +2,7 @@ import Foundation
 
 struct ProjectLibraryEntry: Codable, Identifiable, Hashable {
     let id: UUID
+    var projectID: UUID?
     var title: String
     var fileURL: URL
     var calculationCount: Int
@@ -10,6 +11,7 @@ struct ProjectLibraryEntry: Codable, Identifiable, Hashable {
 
     init(
         id: UUID = UUID(),
+        projectID: UUID? = nil,
         title: String,
         fileURL: URL,
         calculationCount: Int,
@@ -17,6 +19,7 @@ struct ProjectLibraryEntry: Codable, Identifiable, Hashable {
         bookmarkData: Data? = nil
     ) {
         self.id = id
+        self.projectID = projectID
         self.title = title
         self.fileURL = fileURL
         self.calculationCount = calculationCount
@@ -48,34 +51,49 @@ final class ProjectLibraryStore: ObservableObject {
         load()
     }
 
+    /// Returns the library entry representing the same logical project, regardless of filename.
+    func entry(forProjectID projectID: UUID) -> ProjectLibraryEntry? {
+        entries.first { $0.projectID == projectID }
+    }
+
+    /// Registers a saved project. Project UUID is authoritative; URL is only its current location.
+    /// Older entries without projectID are upgraded when the same URL is encountered.
     func register(document: CalculationDocument, at url: URL) {
         let standardizedURL = url.standardizedFileURL
         let bookmarkData = makeBookmark(for: standardizedURL)
-        let entry = ProjectLibraryEntry(
-            title: document.title,
-            fileURL: standardizedURL,
-            calculationCount: document.calculations.count,
-            modifiedAt: document.modifiedAt,
-            bookmarkData: bookmarkData
-        )
-        if let index = entries.firstIndex(where: { $0.fileURL.standardizedFileURL == standardizedURL }) {
+
+        let matchingIndex = entries.firstIndex(where: { $0.projectID == document.id })
+            ?? entries.firstIndex(where: {
+                $0.projectID == nil && $0.fileURL.standardizedFileURL == standardizedURL
+            })
+
+        if let index = matchingIndex {
             let existingID = entries[index].id
             entries[index] = ProjectLibraryEntry(
                 id: existingID,
-                title: entry.title,
-                fileURL: entry.fileURL,
-                calculationCount: entry.calculationCount,
-                modifiedAt: entry.modifiedAt,
+                projectID: document.id,
+                title: document.title,
+                fileURL: standardizedURL,
+                calculationCount: document.calculations.count,
+                modifiedAt: document.modifiedAt,
                 bookmarkData: bookmarkData ?? entries[index].bookmarkData
             )
         } else {
-            entries.append(entry)
+            entries.append(ProjectLibraryEntry(
+                projectID: document.id,
+                title: document.title,
+                fileURL: standardizedURL,
+                calculationCount: document.calculations.count,
+                modifiedAt: document.modifiedAt,
+                bookmarkData: bookmarkData
+            ))
         }
         sortAndPersist()
     }
 
     func refresh(_ entry: ProjectLibraryEntry, with document: CalculationDocument) {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        entries[index].projectID = document.id
         entries[index].title = document.title
         entries[index].calculationCount = document.calculations.count
         entries[index].modifiedAt = document.modifiedAt
