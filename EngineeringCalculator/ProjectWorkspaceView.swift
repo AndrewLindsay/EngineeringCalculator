@@ -24,9 +24,13 @@ struct ProjectWorkspaceView: View {
                     )
                 } else {
                     ForEach(workspace.calculations) { calculation in
-                        calculationRow(calculation)
-                            .tag(calculation.id)
-                            .contextMenu { calculationMenu(calculation) }
+                        NavigationLink {
+                            projectCalculationDestination(calculation)
+                        } label: {
+                            calculationRow(calculation)
+                        }
+                        .tag(calculation.id)
+                        .contextMenu { calculationMenu(calculation) }
                     }
                     .onMove(perform: moveCalculations)
                     .onDelete(perform: deleteCalculations)
@@ -94,6 +98,34 @@ struct ProjectWorkspaceView: View {
         ) { result in
             if case let .failure(error) = result { errorMessage = error.localizedDescription }
         }
+    }
+
+    @ViewBuilder
+    private func projectCalculationDestination(_ calculation: SavedCalculation) -> some View {
+        let document = standaloneDocument(for: calculation)
+        switch calculation.calculatorID {
+        case PipeWeightBuoyancyPersistence.calculatorID:
+            PipeWeightBuoyancyView()
+                .environment(\.initialStandaloneCalculationDocument, document)
+        default:
+            ContentUnavailableView(
+                "Project Case Not Yet Editable",
+                systemImage: "wrench.and.screwdriver",
+                description: Text("\(title(for: calculation.calculatorID)) is stored safely in this project, but live project editing has not yet been connected for this calculator.")
+            )
+            .navigationTitle(calculation.name)
+        }
+    }
+
+    private func standaloneDocument(for calculation: SavedCalculation) -> CalculationDocument {
+        CalculationDocument(
+            kind: .standaloneCalculation,
+            title: calculation.name,
+            createdAt: calculation.createdAt,
+            modifiedAt: calculation.modifiedAt,
+            calculations: [calculation],
+            embeddedMaterials: workspace.embeddedMaterials
+        )
     }
 
     @ViewBuilder
