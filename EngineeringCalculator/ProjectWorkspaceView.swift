@@ -2,9 +2,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ProjectWorkspaceView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var projectLibrary: ProjectLibraryStore
     @EnvironmentObject private var materialStore: MaterialLibraryStore
     @State private var workspace: ProjectWorkspaceModel
+    @State private var savedDocument: CalculationDocument
     @State private var selectedCalculationID: UUID?
     @State private var showingProjectImporter = false
     @State private var showingCalculationImporter = false
@@ -14,11 +16,20 @@ struct ProjectWorkspaceView: View {
     @State private var renameTarget: SavedCalculation?
     @State private var renameText = ""
     @State private var errorMessage: String?
+    @State private var showingUnsavedProjectAlert = false
+    @State private var dismissAfterSave = false
+    private let sourceURL: URL?
 
-    init(initialDocument: CalculationDocument? = nil) {
-        if let initialDocument, let model = try? ProjectWorkspaceModel(document: initialDocument) { _workspace = State(initialValue: model) }
-        else { _workspace = State(initialValue: ProjectWorkspaceModel()) }
+    init(initialDocument: CalculationDocument? = nil, sourceURL: URL? = nil) {
+        let model: ProjectWorkspaceModel
+        if let initialDocument, let loaded = try? ProjectWorkspaceModel(document: initialDocument) { model = loaded }
+        else { model = ProjectWorkspaceModel() }
+        _workspace = State(initialValue: model)
+        _savedDocument = State(initialValue: model.document)
+        self.sourceURL = sourceURL
     }
+
+    private var isDirty: Bool { workspace.document != savedDocument }
 
     var body: some View {
         List(selection: $selectedCalculationID) {
@@ -39,8 +50,13 @@ struct ProjectWorkspaceView: View {
                 Text("Project calculations retain their saved inputs, outputs and embedded material definitions. Opening a project does not import those materials into the global Material Library.")
             }
         }
-        .navigationTitle(workspace.title)
+        .navigationTitle(workspace.title + (isDirty ? " •" : ""))
+        .navigationBarBackButtonHidden(true)
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button { requestProjectExit() } label: { Label("Back", systemImage: "chevron.left") }
+                    .help("Return to Projects")
+            }
             ToolbarItemGroup {
                 Menu {
                     Button { showingAddCalculation = true } label: { Label("New Calculation…", systemImage: "plus") }
@@ -49,10 +65,9 @@ struct ProjectWorkspaceView: View {
                         .help("Import an existing .eccalc calculation into this project")
                 } label: { Label("Add Calculation", systemImage: "plus") }
                     .help("Add a calculation to this project")
-                Button { saveProject() } label: { Label("Save Project…", systemImage: "square.and.arrow.down") }
-                    .help("Save this project as an .ecproject file")
-                Button { showingProjectImporter = true } label: { Label("Open Project…", systemImage: "folder") }
-                    .help("Open an existing .ecproject file")
+                Button { saveProject() } label: { Label(sourceURL == nil ? "Save Project…" : "Save Project", systemImage: "square.and.arrow.down") }
+                    .disabled(!isDirty && sourceURL != nil)
+                    .help(sourceURL == nil ? "Save this project as an .ecproject file" : "Save changes to this project")
             }
         }
         .sheet(isPresented: $showingAddCalculation) {
@@ -63,11 +78,26 @@ struct ProjectWorkspaceView: View {
             Button("Cancel", role: .cancel) { renameTarget = nil }
             Button("Rename") { renameCalculation() }
         }
+        .alert("Unsaved Project Changes", isPresented: $showingUnsavedProjectAlert) {
+            Button("Save") { saveProject(thenDismiss: true) }
+            Button("Don’t Save", role: .destructive) { dismiss() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This project has changes that have not been written to its .ecproject file. Save them before returning to Projects?")
+        }
         .alert("Project Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("OK", role: .cancel) { errorMessage = nil } } message: { Text(errorMessage ?? "") }
         .fileImporter(isPresented: $showingProjectImporter, allowedContentTypes: [.engineeringProject], allowsMultipleSelection: false) { result in openProject(result) }
         .fileImporter(isPresented: $showingCalculationImporter, allowedContentTypes: [.engineeringCalculation], allowsMultipleSelection: false) { result in importCalculation(result) }
         .fileExporter(isPresented: $showingExporter, document: exportDocument, contentType: .engineeringProject, defaultFilename: exportDocument.map { CalculationDocumentFileType.suggestedFilename(for: $0.document) }) { result in
-            switch result { case .success(let url): projectLibrary.register(document: workspace.document, at: url); case .failure(let error): errorMessage = error.localizedDescription }
+            switch result {
+            case .success(let url):
+                projectLibrary.register(document: workspace.document, at: url)
+                savedDocument = workspace.document
+                if dismissAfterSave { dismissAfterSave = false; dismiss() }
+            case .failure(let error):
+                dismissAfterSave = false
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -94,13 +124,7 @@ struct ProjectWorkspaceView: View {
             switch calculatorID {
             case "pipeWeightBuoyancy":
                 let steel = materialStore.steelMaterials.first ?? EngineeringMaterial(name: "Carbon Steel", category: "Steel", densityKgM3: 7850)
-                let construction = PipeConstruction(
-                    name: "Current Pipe",
-                    internalDiameterM: 0.300,
-                    layers: [PipeLayer(name: steel.name, thicknessM: 0.020, material: steel)],
-                    internalFluid: FluidDefinition(name: "Internal Fluid", densityKgM3: 1000),
-                    externalFluid: FluidDefinition(name: "External Fluid", densityKgM3: 1025)
-                )
+                let construction = PipeConstruction(name: "Current Pipe", internalDiameterM: 0.300, layers: [PipeLayer(name: steel.name, thicknessM: 0.020, material: steel)], internalFluid: FluidDefinition(name: "Internal Fluid", densityKgM3: 1000), externalFluid: FluidDefinition(name: "External Fluid", densityKgM3: 1025))
                 let result = PipeWeightBuoyancyCalculator.calculate(construction: construction)
                 let document = try PipeWeightBuoyancyPersistence.makeDocument(name: name, construction: construction, result: result)
                 guard let calculationID = document.calculations.first?.id else { throw ProjectWorkspaceError.invalidStandaloneCalculationCount(document.calculations.count) }
@@ -128,10 +152,30 @@ struct ProjectWorkspaceView: View {
     private func moveCalculations(from source: IndexSet, to destination: Int) { guard source.count == 1, let index = source.first else { return }; do { try workspace.moveCalculation(from: index, to: destination) } catch { errorMessage = error.localizedDescription } }
     private func deleteCalculations(at offsets: IndexSet) { let ids = offsets.compactMap { workspace.calculations.indices.contains($0) ? workspace.calculations[$0].id : nil }; for id in ids { do { try workspace.deleteCalculation(id: id) } catch { errorMessage = error.localizedDescription } } }
     private func renameCalculation() { guard let target = renameTarget else { return }; do { try workspace.renameCalculation(id: target.id, to: renameText) } catch { errorMessage = error.localizedDescription }; renameTarget = nil }
-    private func saveProject() { exportDocument = ProjectCalculationFileDocument(document: workspace.document); showingExporter = true }
+
+    private func requestProjectExit() {
+        if isDirty { showingUnsavedProjectAlert = true } else { dismiss() }
+    }
+
+    private func saveProject(thenDismiss: Bool = false) {
+        if let sourceURL {
+            do {
+                let access = sourceURL.startAccessingSecurityScopedResource()
+                defer { if access { sourceURL.stopAccessingSecurityScopedResource() } }
+                try CalculationDocumentFileIO.write(workspace.document, to: sourceURL)
+                projectLibrary.register(document: workspace.document, at: sourceURL)
+                savedDocument = workspace.document
+                if thenDismiss { dismiss() }
+            } catch { errorMessage = error.localizedDescription }
+        } else {
+            dismissAfterSave = thenDismiss
+            exportDocument = ProjectCalculationFileDocument(document: workspace.document)
+            showingExporter = true
+        }
+    }
 
     private func openProject(_ result: Result<[URL], Error>) {
-        do { guard let url = try result.get().first else { return }; let document = try readSecurityScopedDocument(from: url); guard document.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: CalculationDocumentFileType.standaloneExtension) }; workspace = try ProjectWorkspaceModel(document: document); projectLibrary.register(document: document, at: url); selectedCalculationID = nil } catch { errorMessage = error.localizedDescription }
+        do { guard let url = try result.get().first else { return }; let document = try readSecurityScopedDocument(from: url); guard document.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: CalculationDocumentFileType.standaloneExtension) }; workspace = try ProjectWorkspaceModel(document: document); savedDocument = document; projectLibrary.register(document: document, at: url); selectedCalculationID = nil } catch { errorMessage = error.localizedDescription }
     }
 
     private func importCalculation(_ result: Result<[URL], Error>) {
@@ -139,13 +183,7 @@ struct ProjectWorkspaceView: View {
     }
 
     private func readSecurityScopedDocument(from url: URL) throws -> CalculationDocument { let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; do { return try CalculationDocumentFileIO.document(from: Data(contentsOf: url)) } catch let error as CalculationDocumentCodecError { throw error } catch { throw CalculationDocumentFileError.cannotRead(error.localizedDescription) } }
-    private func registryDefinition(for calculatorID: String) -> CalculationDefinition? {
-        switch calculatorID {
-        case PipeWeightBuoyancyPersistence.calculatorID: return CalculationRegistry.definition(id: "pipeWeightBuoyancy")
-        case PipeHeatTransferPersistence.calculatorID: return CalculationRegistry.definition(id: "pipeHeatTransfer")
-        default: return CalculationRegistry.definition(id: calculatorID)
-        }
-    }
+    private func registryDefinition(for calculatorID: String) -> CalculationDefinition? { switch calculatorID { case PipeWeightBuoyancyPersistence.calculatorID: return CalculationRegistry.definition(id: "pipeWeightBuoyancy"); case PipeHeatTransferPersistence.calculatorID: return CalculationRegistry.definition(id: "pipeHeatTransfer"); default: return CalculationRegistry.definition(id: calculatorID) } }
     private func title(for calculatorID: String) -> String { registryDefinition(for: calculatorID)?.title ?? calculatorID }
     private func icon(for calculatorID: String) -> String { registryDefinition(for: calculatorID)?.systemImage ?? "function" }
 }
@@ -155,12 +193,8 @@ private struct AddProjectCalculationView: View {
     @State private var selectedCalculatorID = CalculationRegistry.all.first?.id ?? "pipeWeightBuoyancy"
     @State private var name = ""
     let onAdd: (String, String) -> Void
-
     var body: some View {
-        NavigationStack { Form { Section("Calculation") { Picker("Calculator", selection: $selectedCalculatorID) { ForEach(CalculationRegistry.all) { definition in Text(definition.title).tag(definition.id) } }; TextField("Case name", text: $name) }; Section { Text("Creates a new project-owned calculation using the calculator's standard starting inputs. Changes remain in the current project workspace until you explicitly save the project.").font(.caption).foregroundStyle(.secondary) } }.navigationTitle("New Calculation").toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.help("Cancel creating this calculation") }
-            ToolbarItem(placement: .confirmationAction) { Button("Create") { let definition = CalculationRegistry.definition(id: selectedCalculatorID); let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines); onAdd(selectedCalculatorID, cleaned.isEmpty ? (definition?.title ?? "Calculation") : cleaned); dismiss() }.help("Create this calculation in the project") }
-        } }
+        NavigationStack { Form { Section("Calculation") { Picker("Calculator", selection: $selectedCalculatorID) { ForEach(CalculationRegistry.all) { definition in Text(definition.title).tag(definition.id) } }; TextField("Case name", text: $name) }; Section { Text("Creates a new project-owned calculation using the calculator's standard starting inputs. Changes remain in the current project workspace until you explicitly save the project.").font(.caption).foregroundStyle(.secondary) } }.navigationTitle("New Calculation").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.help("Cancel creating this calculation") }; ToolbarItem(placement: .confirmationAction) { Button("Create") { let definition = CalculationRegistry.definition(id: selectedCalculatorID); let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines); onAdd(selectedCalculatorID, cleaned.isEmpty ? (definition?.title ?? "Calculation") : cleaned); dismiss() }.help("Create this calculation in the project") } } }
     }
 }
 
