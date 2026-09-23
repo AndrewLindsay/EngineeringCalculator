@@ -6,17 +6,11 @@ final class ProjectWorkspaceModelTests: XCTestCase {
     private let t1 = Date(timeIntervalSince1970: 1_800_000_100)
 
     private func calculation(_ name: String, id: UUID, calculatorID: String = "pipeWeightBuoyancy") -> SavedCalculation {
-        SavedCalculation(
-            id: id,
-            name: name,
-            calculatorID: calculatorID,
-            createdAt: t0,
-            modifiedAt: t0,
-            inputs: [SavedCalculationInput(id: "input", displayName: "Input", source: .literal(.number(12.5)))],
-            outputs: [SavedCalculationOutput(id: "output", displayName: "Output", value: .number(42.0))],
-            assumptions: ["Regression fixture"],
-            notes: "Original notes"
-        )
+        SavedCalculation(id: id, name: name, calculatorID: calculatorID, createdAt: t0, modifiedAt: t0, inputs: [SavedCalculationInput(id: "input", displayName: "Input", source: .literal(.number(12.5)))], outputs: [SavedCalculationOutput(id: "output", displayName: "Output", value: .number(42.0))], assumptions: ["Regression fixture"], notes: "Original notes")
+    }
+
+    private func standalone(_ calculation: SavedCalculation, materials: [EngineeringMaterial]) throws -> CalculationDocument {
+        CalculationDocument(kind: .standaloneCalculation, title: calculation.name, createdAt: t0, modifiedAt: t0, calculations: [calculation], embeddedMaterials: try materials.map(EmbeddedMaterial.fingerprinted))
     }
 
     func testNewWorkspaceCreatesEmptyProjectDocument() {
@@ -31,9 +25,7 @@ final class ProjectWorkspaceModelTests: XCTestCase {
     func testStandaloneDocumentCannotBeOpenedAsProjectWorkspace() {
         let calc = calculation("Standalone", id: UUID())
         let standalone = CalculationDocument.standalone(calc)
-        XCTAssertThrowsError(try ProjectWorkspaceModel(document: standalone)) { error in
-            XCTAssertEqual(error as? ProjectWorkspaceError, .notAProject)
-        }
+        XCTAssertThrowsError(try ProjectWorkspaceModel(document: standalone)) { error in XCTAssertEqual(error as? ProjectWorkspaceError, .notAProject) }
     }
 
     func testAddRenameDuplicateDeleteAndReorderCalculations() throws {
@@ -45,14 +37,12 @@ final class ProjectWorkspaceModelTests: XCTestCase {
         try workspace.addCalculation(calculation("A", id: a), now: t0)
         try workspace.addCalculation(calculation("B", id: b, calculatorID: "pipeHeatTransfer"), now: t0)
         try workspace.addCalculation(calculation("C", id: c), now: t0)
-
         try workspace.renameCalculation(id: b, to: "Heat Transfer Case", now: t1)
         let copiedID = try workspace.duplicateCalculation(id: a, newID: duplicateID, now: t1)
         XCTAssertEqual(copiedID, duplicateID)
         XCTAssertEqual(workspace.calculations.map(\.name), ["A", "A Copy", "Heat Transfer Case", "C"])
         XCTAssertEqual(workspace.calculations[1].inputs, workspace.calculations[0].inputs)
         XCTAssertEqual(workspace.calculations[1].outputs, workspace.calculations[0].outputs)
-
         try workspace.deleteCalculation(id: c, now: t1)
         try workspace.moveCalculation(from: 2, to: 0, now: t1)
         XCTAssertEqual(workspace.calculations.map(\.name), ["Heat Transfer Case", "A", "A Copy"])
@@ -63,25 +53,14 @@ final class ProjectWorkspaceModelTests: XCTestCase {
         let id = UUID(uuidString: "A2000000-0000-0000-0000-000000000001")!
         var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
         try workspace.addCalculation(calculation("A", id: id), now: t0)
-        XCTAssertThrowsError(try workspace.addCalculation(calculation("Duplicate", id: id), now: t1)) { error in
-            XCTAssertEqual(error as? ProjectWorkspaceError, .duplicateCalculationID(id))
-        }
+        XCTAssertThrowsError(try workspace.addCalculation(calculation("Duplicate", id: id), now: t1)) { error in XCTAssertEqual(error as? ProjectWorkspaceError, .duplicateCalculationID(id)) }
     }
 
     func testEmbeddedMaterialMergeDeduplicatesByEngineeringFingerprint() throws {
-        let first = EngineeringMaterial(
-            id: UUID(uuidString: "A3000000-0000-0000-0000-000000000001")!,
-            name: "Project Steel", category: "Steel", densityKgM3: 7850, thermalConductivityWMK: 45
-        )
-        let sameEngineeringContentDifferentID = EngineeringMaterial(
-            id: UUID(uuidString: "A3000000-0000-0000-0000-000000000002")!,
-            name: "Project Steel", category: "Steel", densityKgM3: 7850, thermalConductivityWMK: 45
-        )
+        let first = EngineeringMaterial(id: UUID(uuidString: "A3000000-0000-0000-0000-000000000001")!, name: "Project Steel", category: "Steel", densityKgM3: 7850, thermalConductivityWMK: 45)
+        let sameEngineeringContentDifferentID = EngineeringMaterial(id: UUID(uuidString: "A3000000-0000-0000-0000-000000000002")!, name: "Project Steel", category: "Steel", densityKgM3: 7850, thermalConductivityWMK: 45)
         var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
-        try workspace.mergeEmbeddedMaterials([
-            try .fingerprinted(first),
-            try .fingerprinted(sameEngineeringContentDifferentID)
-        ], now: t1)
+        try workspace.mergeEmbeddedMaterials([try .fingerprinted(first), try .fingerprinted(sameEngineeringContentDifferentID)], now: t1)
         XCTAssertEqual(workspace.embeddedMaterials.count, 1)
     }
 
@@ -91,9 +70,53 @@ final class ProjectWorkspaceModelTests: XCTestCase {
         let conflicting = EngineeringMaterial(id: id, name: "Project Material", category: "Test", densityKgM3: 2000)
         var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
         try workspace.mergeEmbeddedMaterials([try .fingerprinted(first)], now: t0)
-        XCTAssertThrowsError(try workspace.mergeEmbeddedMaterials([try .fingerprinted(conflicting)], now: t1)) { error in
-            XCTAssertEqual(error as? ProjectWorkspaceError, .materialIDConflict(id))
+        XCTAssertThrowsError(try workspace.mergeEmbeddedMaterials([try .fingerprinted(conflicting)], now: t1)) { error in XCTAssertEqual(error as? ProjectWorkspaceError, .materialIDConflict(id)) }
+    }
+
+    func testPortableCalculationImportAddsCalculationAndSharedMaterialOnlyOnce() throws {
+        let material = EngineeringMaterial(id: UUID(uuidString: "A6000000-0000-0000-0000-000000000001")!, name: "Shared Steel", category: "Steel", densityKgM3: 7850, thermalConductivityWMK: 45)
+        let weight = calculation("Weight", id: UUID(uuidString: "A6000000-0000-0000-0000-000000000002")!)
+        let heat = calculation("Heat", id: UUID(uuidString: "A6000000-0000-0000-0000-000000000003")!, calculatorID: "pipeHeatTransfer")
+        var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
+
+        try workspace.addPortableCalculation(from: standalone(weight, materials: [material]), now: t0)
+        try workspace.addPortableCalculation(from: standalone(heat, materials: [material]), now: t1)
+
+        XCTAssertEqual(workspace.calculations.map(\.id), [weight.id, heat.id])
+        XCTAssertEqual(workspace.embeddedMaterials.count, 1)
+        XCTAssertEqual(workspace.embeddedMaterials.first?.id, material.id)
+    }
+
+    func testPortableCalculationImportIsAtomicWhenMaterialConflicts() throws {
+        let materialID = UUID(uuidString: "A7000000-0000-0000-0000-000000000001")!
+        let original = EngineeringMaterial(id: materialID, name: "Shared Material", category: "Test", densityKgM3: 1000)
+        let conflicting = EngineeringMaterial(id: materialID, name: "Shared Material", category: "Test", densityKgM3: 2000)
+        let first = calculation("First", id: UUID(uuidString: "A7000000-0000-0000-0000-000000000002")!)
+        let second = calculation("Second", id: UUID(uuidString: "A7000000-0000-0000-0000-000000000003")!)
+        var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
+        try workspace.addPortableCalculation(from: standalone(first, materials: [original]), now: t0)
+        let before = workspace
+
+        XCTAssertThrowsError(try workspace.addPortableCalculation(from: standalone(second, materials: [conflicting]), now: t1)) { error in
+            XCTAssertEqual(error as? ProjectWorkspaceError, .materialIDConflict(materialID))
         }
+        XCTAssertEqual(workspace, before)
+    }
+
+    func testPortableCalculationProjectRoundTripPreservesCasesAndMaterials() throws {
+        let material = EngineeringMaterial(id: UUID(uuidString: "A8000000-0000-0000-0000-000000000001")!, name: "Portable Steel", category: "Steel", densityKgM3: 7850, thermalConductivityWMK: 45)
+        let weight = calculation("Weight Case", id: UUID(uuidString: "A8000000-0000-0000-0000-000000000002")!)
+        let heat = calculation("Heat Case", id: UUID(uuidString: "A8000000-0000-0000-0000-000000000003")!, calculatorID: "pipeHeatTransfer")
+        var workspace = ProjectWorkspaceModel(title: "Portable Study", now: t0)
+        try workspace.addPortableCalculation(from: standalone(weight, materials: [material]), now: t0)
+        try workspace.addPortableCalculation(from: standalone(heat, materials: [material]), now: t1)
+
+        let data = try CalculationDocumentFileIO.data(for: workspace.document)
+        let reopened = try ProjectWorkspaceModel(document: CalculationDocumentFileIO.document(from: data))
+
+        XCTAssertEqual(reopened, workspace)
+        XCTAssertEqual(reopened.calculations.map(\.id), [weight.id, heat.id])
+        XCTAssertEqual(reopened.embeddedMaterials.count, 1)
     }
 
     func testEditedWorkspaceRoundTripsAsEcproject() throws {
@@ -103,11 +126,9 @@ final class ProjectWorkspaceModelTests: XCTestCase {
         try workspace.addCalculation(calculation("Weight", id: firstID), now: t0)
         try workspace.addCalculation(calculation("Heat", id: secondID, calculatorID: "pipeHeatTransfer"), now: t1)
         try workspace.renameProject("Pipeline Build Comparison", now: t1)
-
         let data = try CalculationDocumentFileIO.data(for: workspace.document)
         let restoredDocument = try CalculationDocumentFileIO.document(from: data)
         let restoredWorkspace = try ProjectWorkspaceModel(document: restoredDocument)
-
         XCTAssertEqual(restoredWorkspace, workspace)
         XCTAssertEqual(CalculationDocumentFileType.suggestedFilename(for: restoredWorkspace.document), "Pipeline Build Comparison.ecproject")
     }
