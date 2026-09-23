@@ -5,10 +5,27 @@ private struct InitialStandaloneCalculationDocumentKey: EnvironmentKey {
     static let defaultValue: CalculationDocument? = nil
 }
 
+/// Context supplied by a project workspace when a calculator is editing a project-owned case.
+/// Standalone calculators see nil and retain their normal Save Calculation workflow.
+struct ProjectCalculationUpdateContext {
+    let calculationID: UUID
+    let calculationName: String
+    let update: (CalculationDocument) throws -> Void
+}
+
+private struct ProjectCalculationUpdateContextKey: EnvironmentKey {
+    static let defaultValue: ProjectCalculationUpdateContext? = nil
+}
+
 extension EnvironmentValues {
     var initialStandaloneCalculationDocument: CalculationDocument? {
         get { self[InitialStandaloneCalculationDocumentKey.self] }
         set { self[InitialStandaloneCalculationDocumentKey.self] = newValue }
+    }
+
+    var projectCalculationUpdateContext: ProjectCalculationUpdateContext? {
+        get { self[ProjectCalculationUpdateContextKey.self] }
+        set { self[ProjectCalculationUpdateContextKey.self] = newValue }
     }
 }
 
