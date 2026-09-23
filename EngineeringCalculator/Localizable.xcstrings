@@ -1,0 +1,98 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "navigation.back" : {
+      "comment" : "Tooltip and accessibility label for a back navigation control.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back" } }
+      }
+    },
+    "tooltip.openCalculation" : {
+      "comment" : "Tooltip for opening a saved Engineering Calculator calculation.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open a saved calculation" } }
+      }
+    },
+    "tooltip.saveCalculation" : {
+      "comment" : "Tooltip for saving the current calculation as a standalone calculation file.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save this calculation" } }
+      }
+    },
+    "tooltip.updateProjectCase" : {
+      "comment" : "Tooltip for writing the current live calculation back to its owning project case.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Update this calculation in the current project" } }
+      }
+    },
+    "tooltip.addLayer" : {
+      "comment" : "Tooltip for adding another material layer to the pipe construction.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a material layer" } }
+      }
+    },
+    "tooltip.deleteLayer" : {
+      "comment" : "Tooltip for deleting a material layer.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete this layer" } }
+      }
+    },
+    "tooltip.moveLayerUp" : {
+      "comment" : "Tooltip for moving a material layer earlier in the layer stack.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Move this layer up" } }
+      }
+    },
+    "tooltip.moveLayerDown" : {
+      "comment" : "Tooltip for moving a material layer later in the layer stack.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Move this layer down" } }
+      }
+    },
+    "tooltip.createMaterial" : {
+      "comment" : "Tooltip for creating a new material while adding a pipe layer.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create a new material" } }
+      }
+    },
+    "pipeWeight.title" : {
+      "comment" : "Title of the Pipe Weight & Buoyancy calculator.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pipe Weight & Buoyancy" } }
+      }
+    },
+    "pipeWeight.section.geometry" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pipe Geometry" } }
+      }
+    },
+    "pipeWeight.section.layers" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Additional Layers" } }
+      }
+    },
+    "pipeWeight.section.fluids" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fluids" } }
+      }
+    },
+    "pipeWeight.section.results" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Results" } }
+      }
+    },
+    "validation.densityMissing" : {
+      "comment" : "Shown when a material required by a calculation has no density value.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Density missing" } }
+      }
+    },
+    "validation.calculationUnavailable" : {
+      "comment" : "Shown when required material data prevents calculation.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Results unavailable until all required material properties are present." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
