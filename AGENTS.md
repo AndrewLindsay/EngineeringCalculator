@@ -132,6 +132,7 @@ The reusable material/property framework is foundational infrastructure for subs
 - Prefer adaptive layouts over hard-coded layouts where practical.
 - For engineering tables, prioritize readability, traceability and useful data density over decorative presentation.
 - Long engineering text, units and multiline headings must remain readable on supported platforms.
+- **Every interactive button and icon should have concise explanatory help text as a standard UI feature.** On macOS/iPadOS pointer environments, provide meaningful hover/tool-tip help (for SwiftUI controls, normally `.help(...)`); do not rely on the SF Symbol alone when its meaning could be ambiguous. Prefer action-oriented wording such as `Update Project Case`, `Open Calculation`, `Delete Material`, or `Move Up`. Where hover is unavailable, retain an appropriate accessibility label/description so icon-only controls remain understandable to assistive technologies.
 - When an implementation proves structurally unsuitable, replace the problematic architecture rather than indefinitely layering compensating offsets/workarounds on top of it.
 - Record important rejected approaches in `DEVELOPMENT_STATUS.md` when doing so will prevent the same dead end being repeated later.
 
