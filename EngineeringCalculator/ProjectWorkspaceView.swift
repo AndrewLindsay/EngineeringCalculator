@@ -4,7 +4,8 @@ import UniformTypeIdentifiers
 struct ProjectWorkspaceView: View {
     @State private var workspace = ProjectWorkspaceModel()
     @State private var selectedCalculationID: UUID?
-    @State private var showingImporter = false
+    @State private var showingProjectImporter = false
+    @State private var showingCalculationImporter = false
     @State private var showingExporter = false
     @State private var exportDocument: ProjectCalculationFileDocument?
     @State private var showingAddCalculation = false
@@ -19,7 +20,7 @@ struct ProjectWorkspaceView: View {
                     ContentUnavailableView(
                         "No Calculations",
                         systemImage: "doc.badge.plus",
-                        description: Text("Add a calculation case to this project.")
+                        description: Text("Create a new calculation case or add an existing .eccalc file to this project.")
                     )
                 } else {
                     ForEach(workspace.calculations) { calculation in
@@ -39,13 +40,20 @@ struct ProjectWorkspaceView: View {
         .navigationTitle(workspace.title)
         .toolbar {
             ToolbarItemGroup {
-                Button { showingAddCalculation = true } label: {
+                Menu {
+                    Button { showingAddCalculation = true } label: {
+                        Label("New Calculation…", systemImage: "plus")
+                    }
+                    Button { showingCalculationImporter = true } label: {
+                        Label("Add Existing Calculation…", systemImage: "doc.badge.plus")
+                    }
+                } label: {
                     Label("Add Calculation", systemImage: "plus")
                 }
                 Button { saveProject() } label: {
                     Label("Save Project…", systemImage: "square.and.arrow.down")
                 }
-                Button { showingImporter = true } label: {
+                Button { showingProjectImporter = true } label: {
                     Label("Open Project…", systemImage: "folder")
                 }
             }
@@ -72,8 +80,11 @@ struct ProjectWorkspaceView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.engineeringProject], allowsMultipleSelection: false) { result in
+        .fileImporter(isPresented: $showingProjectImporter, allowedContentTypes: [.engineeringProject], allowsMultipleSelection: false) { result in
             openProject(result)
+        }
+        .fileImporter(isPresented: $showingCalculationImporter, allowedContentTypes: [.engineeringCalculation], allowsMultipleSelection: false) { result in
+            importCalculation(result)
         }
         .fileExporter(
             isPresented: $showingExporter,
@@ -149,14 +160,35 @@ struct ProjectWorkspaceView: View {
     private func openProject(_ result: Result<[URL], Error>) {
         do {
             guard let url = try result.get().first else { return }
-            let access = url.startAccessingSecurityScopedResource()
-            defer { if access { url.stopAccessingSecurityScopedResource() } }
-            let document = try CalculationDocumentFileIO.read(from: url)
+            let document = try readSecurityScopedDocument(from: url)
+            guard document.kind == .project else {
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension)
+            }
             workspace = try ProjectWorkspaceModel(document: document)
             selectedCalculationID = nil
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func importCalculation(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let document = try readSecurityScopedDocument(from: url)
+            guard document.kind == .standaloneCalculation else {
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .standaloneCalculation, actualExtension: url.pathExtension)
+            }
+            let importedID = try workspace.importStandaloneCalculation(document)
+            selectedCalculationID = importedID
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func readSecurityScopedDocument(from url: URL) throws -> CalculationDocument {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        return try CalculationDocumentFileIO.read(from: url)
     }
 
     private func title(for calculatorID: String) -> String {
@@ -186,18 +218,18 @@ private struct AddProjectCalculationView: View {
                     TextField("Case name", text: $name)
                 }
                 Section {
-                    Text("This first project-workspace increment creates the project case container. Editing the live calculator inputs from a project case will be connected in the next increment.")
+                    Text("Creates a new project case container. Live editing of a newly created project-owned case will be connected in the next increment. To add a complete calculation now, use Add Existing Calculation and select an .eccalc file.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Add Calculation")
+            .navigationTitle("New Calculation")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button("Create") {
                         let definition = CalculationRegistry.definition(id: selectedCalculatorID)
                         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
                         let calculation = SavedCalculation(
