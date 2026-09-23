@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct ProjectWorkspaceView: View {
     @EnvironmentObject private var projectLibrary: ProjectLibraryStore
+    @EnvironmentObject private var materialStore: MaterialLibraryStore
     @State private var workspace: ProjectWorkspaceModel
     @State private var selectedCalculationID: UUID?
     @State private var showingProjectImporter = false
@@ -55,7 +56,7 @@ struct ProjectWorkspaceView: View {
             }
         }
         .sheet(isPresented: $showingAddCalculation) {
-            AddProjectCalculationView { calculation in do { try workspace.addCalculation(calculation) } catch { errorMessage = error.localizedDescription } }
+            AddProjectCalculationView { calculatorID, name in createProjectCalculation(calculatorID: calculatorID, name: name) }
         }
         .alert("Rename Calculation", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
             TextField("Calculation name", text: $renameText)
@@ -88,6 +89,31 @@ struct ProjectWorkspaceView: View {
         try workspace.updateProjectCalculation(id: id, with: updatedCalculation, embeddedMaterials: document.embeddedMaterials)
     }
 
+    private func createProjectCalculation(calculatorID: String, name: String) {
+        do {
+            switch calculatorID {
+            case "pipeWeightBuoyancy":
+                let steel = materialStore.steelMaterials.first ?? EngineeringMaterial(name: "Carbon Steel", category: "Steel", densityKgM3: 7850)
+                let construction = PipeConstruction(
+                    name: "Current Pipe",
+                    internalDiameterM: 0.300,
+                    layers: [PipeLayer(name: steel.name, thicknessM: 0.020, material: steel)],
+                    internalFluid: FluidDefinition(name: "Internal Fluid", densityKgM3: 1000),
+                    externalFluid: FluidDefinition(name: "External Fluid", densityKgM3: 1025)
+                )
+                let result = PipeWeightBuoyancyCalculator.calculate(construction: construction)
+                let document = try PipeWeightBuoyancyPersistence.makeDocument(name: name, construction: construction, result: result)
+                guard let calculationID = document.calculations.first?.id else { throw ProjectWorkspaceError.invalidStandaloneCalculationCount(document.calculations.count) }
+                try workspace.addPortableCalculation(from: document)
+                selectedCalculationID = calculationID
+            default:
+                let calculation = SavedCalculation(name: name, calculatorID: calculatorID)
+                try workspace.addCalculation(calculation)
+                selectedCalculationID = calculation.id
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     @ViewBuilder private func calculationRow(_ calculation: SavedCalculation) -> some View {
         HStack { Image(systemName: icon(for: calculation.calculatorID)).frame(width: 24); VStack(alignment: .leading, spacing: 3) { Text(calculation.name).fontWeight(.semibold); Text(title(for: calculation.calculatorID)).font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(calculation.inputs.count) inputs").font(.caption2).foregroundStyle(.secondary) }
     }
@@ -113,20 +139,27 @@ struct ProjectWorkspaceView: View {
     }
 
     private func readSecurityScopedDocument(from url: URL) throws -> CalculationDocument { let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; do { return try CalculationDocumentFileIO.document(from: Data(contentsOf: url)) } catch let error as CalculationDocumentCodecError { throw error } catch { throw CalculationDocumentFileError.cannotRead(error.localizedDescription) } }
-    private func title(for calculatorID: String) -> String { CalculationRegistry.definition(id: calculatorID)?.title ?? calculatorID }
-    private func icon(for calculatorID: String) -> String { CalculationRegistry.definition(id: calculatorID)?.systemImage ?? "function" }
+    private func registryDefinition(for calculatorID: String) -> CalculationDefinition? {
+        switch calculatorID {
+        case PipeWeightBuoyancyPersistence.calculatorID: return CalculationRegistry.definition(id: "pipeWeightBuoyancy")
+        case PipeHeatTransferPersistence.calculatorID: return CalculationRegistry.definition(id: "pipeHeatTransfer")
+        default: return CalculationRegistry.definition(id: calculatorID)
+        }
+    }
+    private func title(for calculatorID: String) -> String { registryDefinition(for: calculatorID)?.title ?? calculatorID }
+    private func icon(for calculatorID: String) -> String { registryDefinition(for: calculatorID)?.systemImage ?? "function" }
 }
 
 private struct AddProjectCalculationView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedCalculatorID = CalculationRegistry.all.first?.id ?? "pipeWeightBuoyancy"
     @State private var name = ""
-    let onAdd: (SavedCalculation) -> Void
+    let onAdd: (String, String) -> Void
 
     var body: some View {
-        NavigationStack { Form { Section("Calculation") { Picker("Calculator", selection: $selectedCalculatorID) { ForEach(CalculationRegistry.all) { definition in Text(definition.title).tag(definition.id) } }; TextField("Case name", text: $name) }; Section { Text("Creates a new project case container. Live editing of a newly created project-owned case will be connected in the next increment. To add a complete calculation now, use Add Existing Calculation and select an .eccalc file.").font(.caption).foregroundStyle(.secondary) } }.navigationTitle("New Calculation").toolbar {
+        NavigationStack { Form { Section("Calculation") { Picker("Calculator", selection: $selectedCalculatorID) { ForEach(CalculationRegistry.all) { definition in Text(definition.title).tag(definition.id) } }; TextField("Case name", text: $name) }; Section { Text("Creates a new project-owned calculation using the calculator's standard starting inputs. Changes remain in the current project workspace until you explicitly save the project.").font(.caption).foregroundStyle(.secondary) } }.navigationTitle("New Calculation").toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.help("Cancel creating this calculation") }
-            ToolbarItem(placement: .confirmationAction) { Button("Create") { let definition = CalculationRegistry.definition(id: selectedCalculatorID); let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines); onAdd(SavedCalculation(name: cleaned.isEmpty ? (definition?.title ?? "Calculation") : cleaned, calculatorID: selectedCalculatorID)); dismiss() }.help("Create this calculation in the project") }
+            ToolbarItem(placement: .confirmationAction) { Button("Create") { let definition = CalculationRegistry.definition(id: selectedCalculatorID); let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines); onAdd(selectedCalculatorID, cleaned.isEmpty ? (definition?.title ?? "Calculation") : cleaned); dismiss() }.help("Create this calculation in the project") }
         } }
     }
 }
