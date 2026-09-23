@@ -119,6 +119,110 @@ final class ProjectWorkspaceModelTests: XCTestCase {
         XCTAssertEqual(reopened.embeddedMaterials.count, 1)
     }
 
+    func testUpdateProjectCalculationRetainsIdentityAndReplacesEngineeringState() throws {
+        let projectID = UUID(uuidString: "A9000000-0000-0000-0000-000000000001")!
+        let temporaryLiveID = UUID(uuidString: "A9000000-0000-0000-0000-000000000002")!
+        var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
+        let original = calculation("Original Case", id: projectID)
+        try workspace.addCalculation(original, now: t0)
+
+        let updated = SavedCalculation(
+            id: temporaryLiveID,
+            name: "Edited Case",
+            calculatorID: "pipeWeightBuoyancy",
+            calculatorSchemaVersion: 2,
+            createdAt: t1,
+            modifiedAt: t1,
+            inputs: [SavedCalculationInput(id: "input", displayName: "Input", source: .literal(.number(99.0)))],
+            outputs: [SavedCalculationOutput(id: "output", displayName: "Output", value: .number(123.0))],
+            assumptions: ["Updated assumption"],
+            validationMessages: [SavedValidationMessage(severity: .warning, code: "updated", message: "Updated warning")],
+            notes: "Updated notes"
+        )
+
+        try workspace.updateProjectCalculation(id: projectID, with: updated, embeddedMaterials: [], now: t1)
+
+        let saved = try XCTUnwrap(workspace.calculations.first)
+        XCTAssertEqual(saved.id, projectID)
+        XCTAssertEqual(saved.createdAt, original.createdAt)
+        XCTAssertEqual(saved.modifiedAt, t1)
+        XCTAssertEqual(saved.name, "Edited Case")
+        XCTAssertEqual(saved.calculatorSchemaVersion, 2)
+        XCTAssertEqual(saved.inputs, updated.inputs)
+        XCTAssertEqual(saved.outputs, updated.outputs)
+        XCTAssertEqual(saved.assumptions, updated.assumptions)
+        XCTAssertEqual(saved.validationMessages, updated.validationMessages)
+        XCTAssertEqual(saved.notes, updated.notes)
+        XCTAssertEqual(workspace.document.modifiedAt, t1)
+    }
+
+    func testUpdateProjectCalculationKeepsSharedMaterialDeduplicatedAndAddsNewMaterialOnce() throws {
+        let calculationID = UUID(uuidString: "AA000000-0000-0000-0000-000000000001")!
+        let shared = EngineeringMaterial(id: UUID(uuidString: "AA000000-0000-0000-0000-000000000002")!, name: "Shared Steel", category: "Steel", densityKgM3: 7850)
+        let newlyRequired = EngineeringMaterial(id: UUID(uuidString: "AA000000-0000-0000-0000-000000000003")!, name: "New Coating", category: "Coating", densityKgM3: 1200)
+        var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
+        try workspace.mergeEmbeddedMaterials([try .fingerprinted(shared)], now: t0)
+        try workspace.addCalculation(calculation("Case", id: calculationID), now: t0)
+
+        let updated = calculation("Case", id: UUID())
+        try workspace.updateProjectCalculation(
+            id: calculationID,
+            with: updated,
+            embeddedMaterials: [try .fingerprinted(shared), try .fingerprinted(newlyRequired), try .fingerprinted(newlyRequired)],
+            now: t1
+        )
+
+        XCTAssertEqual(workspace.embeddedMaterials.count, 2)
+        XCTAssertEqual(Set(workspace.embeddedMaterials.map(\.id)), Set([shared.id, newlyRequired.id]))
+    }
+
+    func testUpdateProjectCalculationMaterialConflictRollsBackEntireOperation() throws {
+        let calculationID = UUID(uuidString: "AB000000-0000-0000-0000-000000000001")!
+        let materialID = UUID(uuidString: "AB000000-0000-0000-0000-000000000002")!
+        let originalMaterial = EngineeringMaterial(id: materialID, name: "Project Material", category: "Test", densityKgM3: 1000)
+        let conflictingMaterial = EngineeringMaterial(id: materialID, name: "Project Material", category: "Test", densityKgM3: 2000)
+        var workspace = ProjectWorkspaceModel(title: "Study", now: t0)
+        try workspace.mergeEmbeddedMaterials([try .fingerprinted(originalMaterial)], now: t0)
+        try workspace.addCalculation(calculation("Original", id: calculationID), now: t0)
+        let before = workspace
+
+        var updated = calculation("Changed", id: UUID())
+        updated.inputs = [SavedCalculationInput(id: "input", displayName: "Input", source: .literal(.number(999.0)))]
+
+        XCTAssertThrowsError(
+            try workspace.updateProjectCalculation(
+                id: calculationID,
+                with: updated,
+                embeddedMaterials: [try .fingerprinted(conflictingMaterial)],
+                now: t1
+            )
+        ) { error in
+            XCTAssertEqual(error as? ProjectWorkspaceError, .materialIDConflict(materialID))
+        }
+        XCTAssertEqual(workspace, before)
+    }
+
+    func testUpdateProjectCalculationRoundTripRetainsUpdatedCaseAndMaterials() throws {
+        let calculationID = UUID(uuidString: "AC000000-0000-0000-0000-000000000001")!
+        let material = EngineeringMaterial(id: UUID(uuidString: "AC000000-0000-0000-0000-000000000002")!, name: "Updated Material", category: "Test", densityKgM3: 3456)
+        var workspace = ProjectWorkspaceModel(title: "Update Round Trip", now: t0)
+        try workspace.addCalculation(calculation("Original", id: calculationID), now: t0)
+
+        var updated = calculation("Updated", id: UUID())
+        updated.inputs = [SavedCalculationInput(id: "input", displayName: "Input", source: .literal(.number(77.0)))]
+        updated.outputs = [SavedCalculationOutput(id: "output", displayName: "Output", value: .number(88.0))]
+        try workspace.updateProjectCalculation(id: calculationID, with: updated, embeddedMaterials: [try .fingerprinted(material)], now: t1)
+
+        let data = try CalculationDocumentFileIO.data(for: workspace.document)
+        let reopened = try ProjectWorkspaceModel(document: CalculationDocumentFileIO.document(from: data))
+
+        XCTAssertEqual(reopened, workspace)
+        XCTAssertEqual(reopened.calculations.first?.id, calculationID)
+        XCTAssertEqual(reopened.calculations.first?.inputs, updated.inputs)
+        XCTAssertEqual(reopened.calculations.first?.outputs, updated.outputs)
+        XCTAssertEqual(reopened.embeddedMaterials.map(\.id), [material.id])
+    }
+
     func testEditedWorkspaceRoundTripsAsEcproject() throws {
         let firstID = UUID(uuidString: "A5000000-0000-0000-0000-000000000001")!
         let secondID = UUID(uuidString: "A5000000-0000-0000-0000-000000000002")!
