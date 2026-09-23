@@ -178,7 +178,10 @@ struct ProjectWorkspaceView: View {
             guard document.kind == .standaloneCalculation else {
                 throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .standaloneCalculation, actualExtension: url.pathExtension)
             }
-            let importedID = try workspace.importStandaloneCalculation(document)
+            guard let importedID = document.calculations.first?.id else {
+                throw ProjectWorkspaceError.invalidStandaloneCalculationCount(document.calculations.count)
+            }
+            try workspace.addPortableCalculation(from: document)
             selectedCalculationID = importedID
         } catch {
             errorMessage = error.localizedDescription
