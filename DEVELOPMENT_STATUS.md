@@ -1,11 +1,11 @@
 # Engineering Calculator — Development Status & Roadmap
 
 **Last updated:** 23 September 2026  
-**Status:** **ACTIVE — known-good 175-test checkpoint**  
+**Status:** **ACTIVE — known-good 183-test checkpoint**  
 **Active development branch:** `feature/portable-calculation-documents`  
 **Earlier recovery branch:** `checkpoint/project-library-171-tests`  
-**Current focus:** portable self-contained calculation/project documents, project-case editing, and consistent localized UI help  
-**Last user-verified automated checkpoint:** **175 tests passed, 0 failures**
+**Current focus:** portable self-contained calculation/project documents and robust Project Library file access  
+**Last user-verified automated checkpoint:** **183 tests passed, 0 failures**
 
 Read `AGENTS.md` first, then this file whenever resuming or refreshing development status.
 
@@ -16,40 +16,44 @@ This is the authoritative restart point.
 1. Confirm branch `feature/portable-calculation-documents`.
 2. Run `git pull`, `git status`, and `git branch --show-current`.
 3. Build the macOS target and run the complete suite with **⌘U** when making substantive code changes.
-4. Current regression baseline: **175/175 tests passing**.
-5. **Update Project Case is implemented and tested. Do not reimplement it.**
-6. Localization/tooltips are now established infrastructure. Continue the UI audit as screens are touched; do not replace native navigation controls merely to add hover help.
-7. Resume the substantive portable-document roadmap with **Project Library persistence/relaunch robustness and security-scoped access**, followed by the remaining cross-device/document-provider integration checks.
+4. Current regression baseline: **183/183 tests passing**.
+5. Project-owned Pipe Weight & Buoyancy cases are live-editable and have safe dirty-state handling. Do not reimplement this workflow.
+6. Project identity is UUID-based; filename/location is not project identity.
+7. Imported standalone calculations become project-owned snapshots, not live links to the source `.eccalc` file.
+8. Independent project copies receive new project UUIDs and must remain independent.
+9. Resume with **Project Library persistence/relaunch robustness and security-scoped access**, followed by document-provider and cross-device integration checks.
 
 # CHECKPOINT SUMMARY
 
-The portable-document architecture has progressed through standalone calculation persistence, material reconciliation, project persistence, persistent Project Library, project-owned calculation opening, and transactional updating of a project-owned calculation.
+The portable-document architecture now covers standalone calculation persistence, material reconciliation, project persistence, persistent Project Library, project-owned calculation opening/editing, explicit dirty-state handling, independent copies and UUID-based duplicate detection.
 
 User-verified at this checkpoint:
 
-- **175 tests passed, 0 failures** in the complete Xcode test suite;
+- **183 tests passed, 0 failures** in the complete Xcode test suite;
 - standalone Pipe Weight & Buoyancy `.eccalc` save/export/open works, including multi-layer cases;
-- deterministic portable regression cases provide stable build-to-build comparisons;
-- `.eccalc` and `.ecproject` document types/extensions are registered;
+- `.eccalc` and `.ecproject` extensions are appended/registered correctly through the implemented document workflow;
 - project model supports multiple calculations and embedded material definitions;
-- importing a standalone calculation into a project is atomic;
+- importing a standalone calculation into a project creates a project-owned snapshot rather than a live link to the original file;
 - identical project materials are deduplicated and same-UUID/different-definition conflicts are rejected rather than silently overwritten;
-- Project Library catalogues saved/imported project files and metadata rather than duplicating project contents;
+- Project Library catalogues project files/metadata rather than duplicating project contents;
 - projects can be named and their internal title renamed independently of the physical filename;
-- a project-owned Pipe Weight & Buoyancy case opens through the normal live calculator restoration path using embedded material snapshots;
-- **Update Project Case is implemented**: a live project-owned calculation can be edited and written transactionally back to its owning project while retaining project/calculation identity and material reconciliation rules;
-- the updated project case can be reopened/persisted through the `.ecproject` workflow;
-- `Localizable.xcstrings` is part of the Xcode application target and currently contains manually managed semantic keys for navigation/help/validation and Pipe Weight & Buoyancy UI text;
-- Pipe Weight & Buoyancy uses localized semantic help for Save/Update, Open Calculation, Add Layer, Delete Layer, Move Up/Down and Create Material controls;
-- the reusable Open Calculation toolbar control has verified macOS hover help;
-- icon-only controls should carry accessibility labels in addition to pointer-platform help text;
-- the native NavigationStack Back arrow is an intentional exception: preserve native navigation semantics rather than replacing it solely to add a tooltip.
+- project identity is based on persistent project UUID rather than filename/path;
+- opening the same project UUID from another filename/location updates the existing Project Library identity rather than creating a second logical project;
+- creating an independent copy gives it a new project UUID and preserves calculations/materials;
+- project-owned Pipe Weight & Buoyancy calculations open through the normal live calculator restoration path using embedded material snapshots;
+- editing a project-owned calculation marks it dirty; leaving it prompts the user to Update Project / Discard Changes / Cancel;
+- updating a calculation changes the in-memory project but does not silently overwrite the `.ecproject` file;
+- leaving a dirty project prompts Save / Don't Save / Cancel;
+- Don't Save returns to the last persisted project state rather than accidentally committing in-memory edits;
+- a newly created independent copy is dirty until explicitly saved, preventing the back arrow from silently losing it;
+- Project Library identity survives `ProjectLibraryStore` reload in automated coverage;
+- localization/tooltips remain established infrastructure using `Localizable.xcstrings`.
 
 # AUTOMATED TEST STATUS
 
-The full user-run Xcode suite is green at **175/175**.
+The full user-run Xcode suite is green at **183/183**.
 
-Coverage includes the established material framework and portable-document foundation, including:
+Coverage includes the established material framework and portable-document foundation plus the project lifecycle regression layer:
 
 - material scalar/table/equation property persistence and resolution;
 - material validation/requirements and calculator blocking when required properties are missing;
@@ -64,124 +68,71 @@ Coverage includes the established material framework and portable-document found
 - atomic standalone-calculation-to-project import;
 - shared material deduplication and rejection/rollback for same-UUID conflicting definitions;
 - project encode/decode/reopen retaining calculation IDs, cases and shared embedded materials;
-- transactional project-case replacement/update behaviour added after the 171-test checkpoint.
+- transactional project-case replacement/update behaviour;
+- unsaved calculation edits do not mutate the saved project snapshot;
+- Don't Save/reopen restores the last persisted engineering state;
+- Save/reopen preserves the updated engineering state;
+- imported `.eccalc` calculations are project-owned rather than linked to the source file;
+- independent project copies receive new project UUIDs while retaining calculations/materials;
+- same-project UUID from another filename/location resolves as the existing logical project;
+- genuinely independent project UUIDs create separate Project Library entries;
+- project identity persists across `ProjectLibraryStore` reload.
 
-## Still requiring integration/manual coverage
+# STILL REQUIRING INTEGRATION / MANUAL COVERAGE
 
-Do not infer the following solely from the 175 green tests:
+Do not infer the following solely from the 183 green tests:
 
-- Project Library persistence across full application relaunch;
+- Project Library access across a **full application termination and relaunch** for files selected outside the app sandbox;
 - durable security-scoped bookmark/access behaviour for externally selected files;
+- moved/renamed/deleted external project-file recovery behaviour;
 - real document-picker/iCloud-provider behaviour on physical devices;
-- UI navigation semantics across repeated Home → Projects → Project → Calculator → back workflows;
-- context-menu/long-press rename interaction on all platforms;
-- filename-extension behaviour as observed through native macOS/iOS save panels;
-- full tooltip/accessibility audit of every existing screen;
-- full automatic extraction/localization of all ordinary visible SwiftUI strings;
-- cross-device Mac ↔ iPhone portability.
+- cross-device Mac ↔ iPhone portability;
+- complete tooltip/accessibility and localization audit.
 
 # LOCALIZATION & UI HELP ARCHITECTURE
 
-Use a single Apple String Catalog, `EngineeringCalculator/Localizable.xcstrings`, as the localization authority.
-
-Current approach:
-
-- English is the source language.
-- Additional languages are added to the same String Catalog; do not create parallel Swift source files per language.
-- Stable semantic keys are appropriate for tooltips, accessibility/help text, validation messages and other deliberately managed strings, for example `tooltip.*`, `navigation.*`, `validation.*` and calculator-specific namespaces.
-- Manually maintained semantic catalog entries use `extractionState = manual`.
-- Ordinary SwiftUI visible text can later use Xcode automatic String Catalog extraction. The earlier Xcode extraction experiment identified roughly 300 existing UI strings; adopt that deliberately as a separate localization phase rather than as an accidental side effect of an unrelated change.
-- Engineering identifiers, file extensions, units, equations and machine-readable persistence keys must remain language-independent.
-
-UI rule:
-
-- all app-owned interactive buttons/icons should have concise explanatory help text where the platform supports hover help;
-- icon-only controls should also have meaningful accessibility labels;
-- help text should explain the action, not merely repeat an ambiguous symbol;
-- use localized semantic strings rather than duplicating English tooltip text in Swift;
-- native system navigation controls may retain native behaviour without custom replacement solely to add a tooltip. The standard Back arrow is the explicit current example.
-
-`Localizable.xcstrings` is JSON; validate structural edits with a JSON parser such as `python3 -m json.tool`, not `plutil -lint`.
-
-# MANUAL TESTING ALREADY PERFORMED
-
-Observed on the Mac build during this development phase:
-
-1. Standalone Pipe Weight & Buoyancy calculations save/open and restore multiple material layers.
-2. A standalone `.eccalc` can be imported into a Project Workspace.
-3. File-extension/document-type registration and provider-URL handling were corrected after real save/import testing exposed them.
-4. Named Project Library workflow and project rename have been exercised.
-5. A project-owned Pipe Weight & Buoyancy calculation opens using embedded project material definitions rather than silently substituting the global library.
-6. The Update Project Case workflow has been implemented and exercised: open project-owned case → edit → update project case → persist/reopen.
-7. Complete Xcode suite reported **175 tests passed** after the project-case work and again before the latest tooltip-only Open Calculation change.
-8. macOS hover help for the reusable Open/Load Calculation folder icon was manually verified after the localized help change.
-
-# PHYSICAL DEVICE / PLATFORM TESTING STILL REQUIRED
-
-## Physical iPhone / iPad
-
-- [ ] Install and launch the current project-document build on a physical iPhone.
-- [ ] Verify Project Library layout at phone width and all controls remain accessible at Compact, Standard and Comfortable interface densities.
-- [ ] Create a named project and confirm the title is visible in the workspace and library.
-- [ ] Press and hold a project entry; verify Rename appears, rename the project, leave/re-enter Projects and confirm persistence.
-- [ ] Save/export a standalone calculation without manually typing `.eccalc`; verify Files shows the extension.
-- [ ] Save/export a project without manually typing `.ecproject`; verify Files shows the extension.
-- [ ] Import/open `.eccalc` and `.ecproject` through Files/iCloud Drive.
-- [ ] Verify no false unsupported-extension error occurs with document-provider/security-scoped URLs.
-- [ ] Open a project-owned Pipe Weight & Buoyancy case and confirm all inputs, layers, material selections and results restore correctly.
-- [ ] Edit a project-owned case, Update Project Case, save, terminate/relaunch, reopen and verify edited values/results.
-- [ ] Verify embedded project material definitions do not silently appear in or overwrite the global Material Library.
-- [ ] Fully terminate/relaunch and reopen catalogued projects; use security-scoped bookmarks if plain stored URLs are not durable.
-- [ ] Move/rename/delete a catalogued project externally and verify clear inaccessible/missing-file handling.
-
-## macOS integration checks still required
-
-- [ ] Explicitly verify saving `Test Calculation` produces `Test Calculation.eccalc` without manually entering the extension.
-- [ ] Explicitly verify saving `Test Project` produces `Test Project.ecproject` without manually entering the extension.
-- [ ] Save a named project, return to Project Library, and verify the correct internal title and calculation count.
-- [ ] Right-click → Rename, reopen and confirm the renamed internal title persists while filename remains unchanged.
-- [ ] Fully quit/relaunch and verify Project Library entries can reopen their files; implement security-scoped bookmarks if required.
-- [ ] Repeatedly verify Home → Projects → Project → Calculator → Project → Projects → Home navigation.
-- [ ] Import two calculations sharing the same material, save/reopen and manually verify both calculations/results.
-- [ ] Exercise a deliberate same-UUID/different-content material conflict through the UI and confirm no partial mutation.
-- [ ] Verify light/dark mode and all interface-density settings for Project Library, Project Workspace and restored calculation views.
-- [ ] Continue tooltip/accessibility audit of app-owned controls as each screen is touched.
-
-## Cross-device portability
-
-- [ ] Mac → iPhone `.eccalc` with a clean/different local material library reproduces saved result.
-- [ ] Mac → iPhone `.ecproject` reproduces project calculations without originating library materials.
-- [ ] Repeat iPhone → Mac.
-- [ ] Exercise the same project through iCloud Drive where practical.
+Use the single Apple String Catalog `EngineeringCalculator/Localizable.xcstrings` as the localization authority. English is the source language. Stable semantic keys remain appropriate for help/accessibility/validation text, while engineering identifiers, file extensions, units, equations and persistence keys remain language-independent. Preserve native navigation semantics rather than replacing native controls solely to add tooltips.
 
 # EXACT NEXT DEVELOPMENT TASK — PROJECT LIBRARY RELAUNCH ROBUSTNESS
 
-The next substantive portable-document task is to validate and, if required, harden persistent access to Project Library files across application relaunch.
+The next substantive task is to validate and, if required, harden persistent access to Project Library files across application relaunch.
 
 Required workflow:
 
-1. Create or import a real `.ecproject` into Project Library.
-2. Save it outside the app's temporary working context using the normal macOS/iOS picker workflow.
-3. Fully terminate the application.
-4. Relaunch and attempt to reopen the catalogued project from Project Library.
-5. If the stored URL does not retain sandbox access, implement persistent security-scoped bookmark storage/resolution rather than copying project contents into the catalogue.
-6. Preserve the architectural rule that the `.ecproject` file is authoritative and Project Library is only a catalogue/locator.
-7. Handle stale/moved/deleted files clearly; do not silently create replacement projects.
-8. Add deterministic automated coverage for bookmark/catalogue persistence logic where platform APIs allow it, then repeat the real relaunch test.
-
-After this is stable, proceed through the remaining macOS/physical-iPhone document-provider and cross-device portability checklist before declaring portable project documents complete.
+1. Create/save or import a real `.ecproject` through the normal macOS picker workflow.
+2. Confirm the Project Library entry points to that authoritative project file.
+3. Fully terminate Engineering Calculator — not merely navigate back to Home.
+4. Relaunch the application and reopen the project from Project Library.
+5. Determine whether the stored URL retains sandbox access after relaunch.
+6. If not, implement persistent security-scoped bookmark storage/resolution for external project files.
+7. Preserve the architectural rule that the `.ecproject` file is authoritative and Project Library remains only a catalogue/locator.
+8. Detect stale/moved/deleted/inaccessible files and present a clear recovery path; never silently create a replacement project.
+9. Add deterministic automated coverage for bookmark/catalogue persistence logic where platform APIs permit it.
+10. Repeat the real terminate/relaunch test, then proceed to physical-iPhone/document-provider and cross-device portability testing.
 
 # ARCHITECTURE DECISIONS TO PRESERVE
 
 ## Portable document authority
 
-A transferred standalone calculation or project must be wholly self-contained. Embedded material definitions are part of the engineering record and are authoritative for reproducing the saved state. A changed local Material Library must not silently alter a historical calculation.
+A transferred standalone calculation or project must be wholly self-contained. Embedded material definitions are part of the engineering record and authoritative for reproducing the saved state. A changed local Material Library must not silently alter a historical calculation.
 
 Standalone calculations use `.eccalc`; projects use `.ecproject`.
 
+## Project ownership and save boundaries
+
+A calculation contained in a project is project-owned data. Importing a standalone `.eccalc` copies its persisted calculation/material state into the project; subsequent project edits do not mutate the original standalone file.
+
+Editing a project calculation first changes working/in-memory state. Updating the project case commits that working calculation into the in-memory project. Saving the project commits the in-memory project to the authoritative `.ecproject` file. These boundaries are deliberate because automatic file writes would remove the user's ability to discard work while no general undo/version-history system exists.
+
+## Project identity
+
+Persistent project UUID is authoritative identity. Filename, displayed title and URL/location are mutable metadata and must not be used as logical identity.
+
+Opening another file representing the same project UUID must not silently create a second logical Project Library project. An independent copy must receive a new project UUID.
+
 ## Project Library authority
 
-The Project Library is a catalogue, not a second copy of project data. The `.ecproject` file remains authoritative. Catalogue metadata may include project title, file location, calculation count and modified date.
+The Project Library is a catalogue, not a second copy of project data. The `.ecproject` file remains authoritative. Catalogue metadata may include project UUID, title, file location, calculation count and modified date.
 
 Persistent access to externally selected files must respect macOS/iOS sandboxing. If plain URLs do not survive relaunch reliably, store security-scoped bookmarks rather than copying project contents into the catalogue.
 
@@ -196,6 +147,25 @@ Persistent access to externally selected files must respect macOS/iOS sandboxing
 ## Future extensibility
 
 Persisted calculation inputs must remain extensible beyond literal doubles so future shared project parameters and calculation-output chaining can be introduced without replacing the persistence architecture. Stable UUIDs/machine identifiers must remain independent of display names.
+
+# PLATFORM TESTING AFTER RELAUNCH ROBUSTNESS
+
+## Physical iPhone / iPad
+
+- [ ] Install and launch the current project-document build on a physical iPhone.
+- [ ] Verify Project Library layout and controls at phone width.
+- [ ] Create/save a project and verify `.ecproject` handling through Files/iCloud Drive.
+- [ ] Import/open `.eccalc` and `.ecproject` through Files/iCloud Drive.
+- [ ] Open/edit/update/save/relaunch/reopen a project-owned Pipe Weight & Buoyancy case.
+- [ ] Verify embedded project materials do not silently overwrite the global Material Library.
+- [ ] Test externally moved/renamed/deleted catalogued project files.
+
+## Cross-device portability
+
+- [ ] Mac → iPhone `.eccalc` with a clean/different local material library reproduces saved result.
+- [ ] Mac → iPhone `.ecproject` reproduces project calculations without originating library materials.
+- [ ] Repeat iPhone → Mac.
+- [ ] Exercise the same project through iCloud Drive where practical.
 
 # DEFERRED ROADMAP — AFTER PROJECT DOCUMENTS ARE STABLE
 
@@ -234,7 +204,7 @@ checkpoint/project-library-171-tests
 Current user-verified suite baseline:
 
 ```text
-175 tests passed, 0 failures
+183 tests passed, 0 failures
 ```
 
 Normal resume workflow:
@@ -256,4 +226,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-The 171-test checkpoint branch remains useful for historical recovery, but it predates Update Project Case and the localization/help infrastructure. Prefer the current feature branch for ongoing development.
+The 171-test checkpoint branch remains useful for historical recovery, but it predates the completed project lifecycle/dirty-state work. Prefer the current feature branch for ongoing development.
