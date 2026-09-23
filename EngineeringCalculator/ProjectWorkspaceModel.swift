@@ -52,6 +52,46 @@ struct ProjectWorkspaceModel: Equatable {
         self = staged
     }
 
+    /// Replaces the persisted engineering state of an existing project-owned calculation.
+    ///
+    /// The operation is transactional: material reconciliation and calculation replacement are
+    /// performed against a staged copy. If any embedded material conflicts with an existing UUID,
+    /// the receiver is left unchanged. The project's existing calculation identity and creation
+    /// timestamp are authoritative and are retained even if the live calculator snapshot was
+    /// constructed with a temporary/new UUID.
+    mutating func updateProjectCalculation(
+        id: UUID,
+        with updatedCalculation: SavedCalculation,
+        embeddedMaterials: [EmbeddedMaterial],
+        now: Date = Date()
+    ) throws {
+        guard let index = document.calculations.firstIndex(where: { $0.id == id }) else {
+            throw ProjectWorkspaceError.calculationNotFound(id)
+        }
+
+        var staged = self
+        try staged.mergeEmbeddedMaterials(embeddedMaterials, now: now)
+
+        let existing = staged.document.calculations[index]
+        var replacement = SavedCalculation(
+            id: existing.id,
+            name: updatedCalculation.name,
+            calculatorID: updatedCalculation.calculatorID,
+            calculatorSchemaVersion: updatedCalculation.calculatorSchemaVersion,
+            createdAt: existing.createdAt,
+            modifiedAt: now,
+            inputs: updatedCalculation.inputs,
+            outputs: updatedCalculation.outputs,
+            assumptions: updatedCalculation.assumptions,
+            validationMessages: updatedCalculation.validationMessages,
+            notes: updatedCalculation.notes
+        )
+        replacement.name = updatedCalculation.name
+        staged.document.calculations[index] = replacement
+        staged.document.modifiedAt = now
+        self = staged
+    }
+
     mutating func renameCalculation(id: UUID, to name: String, now: Date = Date()) throws {
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { throw ProjectWorkspaceError.emptyName }
