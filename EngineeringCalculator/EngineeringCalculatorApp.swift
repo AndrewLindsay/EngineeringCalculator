@@ -62,6 +62,7 @@ extension EnvironmentValues {
 @main
 struct EngineeringCalculatorApp: App {
     @StateObject private var materialLibrary = MaterialLibraryStore()
+    @StateObject private var projectLibrary = ProjectLibraryStore()
     @AppStorage("interfaceDensity") private var densityRaw = InterfaceDensity.compact.rawValue
 
     private var density: InterfaceDensity {
@@ -73,6 +74,7 @@ struct EngineeringCalculatorApp: App {
             HomeView()
                 .environment(\.interfaceDensity, density)
                 .environmentObject(materialLibrary)
+                .environmentObject(projectLibrary)
         }
     }
 }
