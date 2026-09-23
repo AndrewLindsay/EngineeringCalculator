@@ -1,7 +1,7 @@
 # Engineering Calculator — Development Status & Roadmap
 
 **Last updated:** 23 September 2026  
-**Status:** **ACTIVE — known-good 183-test checkpoint**  
+**Status:** **SAFE HOLD POINT — known-good 183-test checkpoint; resume development 24 September 2026**  
 **Active development branch:** `feature/portable-calculation-documents`  
 **Earlier recovery branch:** `checkpoint/project-library-171-tests`  
 **Current focus:** portable self-contained calculation/project documents and robust Project Library file access  
@@ -9,19 +9,20 @@
 
 Read `AGENTS.md` first, then this file whenever resuming or refreshing development status.
 
-# RESUME HERE
+# RESUME HERE TOMORROW
 
 This is the authoritative restart point.
 
 1. Confirm branch `feature/portable-calculation-documents`.
 2. Run `git pull`, `git status`, and `git branch --show-current`.
-3. Build the macOS target and run the complete suite with **⌘U** when making substantive code changes.
-4. Current regression baseline: **183/183 tests passing**.
-5. Project-owned Pipe Weight & Buoyancy cases are live-editable and have safe dirty-state handling. Do not reimplement this workflow.
-6. Project identity is UUID-based; filename/location is not project identity.
-7. Imported standalone calculations become project-owned snapshots, not live links to the source `.eccalc` file.
-8. Independent project copies receive new project UUIDs and must remain independent.
-9. Resume with **Project Library persistence/relaunch robustness and security-scoped access**, followed by document-provider and cross-device integration checks.
+3. Build the macOS target and run the complete suite with **⌘U** before/after substantive changes. Expected baseline: **183/183 tests passing**.
+4. Do **not** reimplement project-owned calculation editing, dirty-state handling, independent project copies, or UUID-based project identity; these are established and tested.
+5. Begin with **Project Library persistence/relaunch robustness and security-scoped access**.
+6. First perform the real macOS integration test: create/save or import an `.ecproject`, fully quit Engineering Calculator, relaunch it, and reopen that project from Project Library.
+7. If the stored URL cannot be accessed after relaunch, implement durable security-scoped bookmark persistence/resolution.
+8. Bookmark/location is only a locator. **Project UUID remains authoritative identity and the `.ecproject` file remains authoritative project data.**
+9. Add stale/moved/deleted/inaccessible-file recovery. Never silently create a replacement project.
+10. After relaunch robustness is proven, continue to physical-iPhone/document-provider and Mac ↔ iPhone portability testing.
 
 # CHECKPOINT SUMMARY
 
@@ -89,10 +90,6 @@ Do not infer the following solely from the 183 green tests:
 - cross-device Mac ↔ iPhone portability;
 - complete tooltip/accessibility and localization audit.
 
-# LOCALIZATION & UI HELP ARCHITECTURE
-
-Use the single Apple String Catalog `EngineeringCalculator/Localizable.xcstrings` as the localization authority. English is the source language. Stable semantic keys remain appropriate for help/accessibility/validation text, while engineering identifiers, file extensions, units, equations and persistence keys remain language-independent. Preserve native navigation semantics rather than replacing native controls solely to add tooltips.
-
 # EXACT NEXT DEVELOPMENT TASK — PROJECT LIBRARY RELAUNCH ROBUSTNESS
 
 The next substantive task is to validate and, if required, harden persistent access to Project Library files across application relaunch.
@@ -143,10 +140,6 @@ Persistent access to externally selected files must respect macOS/iOS sandboxing
 - UUID present but content differs: report a conflict; never silently overwrite.
 - Imported data must not gain protected built-in status from untrusted metadata.
 - Historical calculations continue using their embedded definition unless the user deliberately adopts a different definition.
-
-## Future extensibility
-
-Persisted calculation inputs must remain extensible beyond literal doubles so future shared project parameters and calculation-output chaining can be introduced without replacing the persistence architecture. Stable UUIDs/machine identifiers must remain independent of display names.
 
 # PLATFORM TESTING AFTER RELAUNCH ROBUSTNESS
 
