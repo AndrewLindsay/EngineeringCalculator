@@ -57,7 +57,18 @@ struct ProjectLibraryView: View {
 
     private func renameProjectFromLibrary() {
         guard let entry = renameEntry else { return }; let cleaned = renameText.trimmingCharacters(in: .whitespacesAndNewlines); guard !cleaned.isEmpty else { return }
-        do { let access = entry.fileURL.startAccessingSecurityScopedResource(); defer { if access { entry.fileURL.stopAccessingSecurityScopedResource() } }; let data = try Data(contentsOf: entry.fileURL); let decoded = try CalculationDocumentFileIO.document(from: data); var workspace = try ProjectWorkspaceModel(document: decoded); try workspace.renameProject(cleaned); let updated = workspace.document; try CalculationDocumentFileIO.data(for: updated).write(to: entry.fileURL, options: .atomic); projectLibrary.register(document: updated, at: entry.fileURL) } catch { errorMessage = error.localizedDescription }
+        do {
+            let url = try projectLibrary.resolvedURL(for: entry)
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let decoded = try CalculationDocumentFileIO.document(from: data)
+            var workspace = try ProjectWorkspaceModel(document: decoded)
+            try workspace.renameProject(cleaned)
+            let updated = workspace.document
+            try CalculationDocumentFileIO.data(for: updated).write(to: url, options: .atomic)
+            projectLibrary.register(document: updated, at: url)
+        } catch { errorMessage = error.localizedDescription }
         renameEntry = nil
     }
 
@@ -67,9 +78,21 @@ struct ProjectLibraryView: View {
 }
 
 private struct CataloguedProjectLoaderView: View {
+    @EnvironmentObject private var projectLibrary: ProjectLibraryStore
     let entry: ProjectLibraryEntry
     @State private var document: CalculationDocument?
     @State private var errorMessage: String?
     var body: some View { Group { if let document { ProjectWorkspaceView(initialDocument: document) } else if let errorMessage { ContentUnavailableView("Project Could Not Be Opened", systemImage: "exclamationmark.triangle", description: Text(errorMessage)) } else { ProgressView("Opening \(entry.title)…") } }.task { load() } }
-    private func load() { guard document == nil, errorMessage == nil else { return }; do { let access = entry.fileURL.startAccessingSecurityScopedResource(); defer { if access { entry.fileURL.stopAccessingSecurityScopedResource() } }; let data = try Data(contentsOf: entry.fileURL); let decoded = try CalculationDocumentFileIO.document(from: data); guard decoded.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: entry.fileURL.pathExtension) }; document = decoded } catch { errorMessage = error.localizedDescription } }
+    private func load() {
+        guard document == nil, errorMessage == nil else { return }
+        do {
+            let url = try projectLibrary.resolvedURL(for: entry)
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let decoded = try CalculationDocumentFileIO.document(from: data)
+            guard decoded.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension) }
+            document = decoded
+        } catch { errorMessage = error.localizedDescription }
+    }
 }
