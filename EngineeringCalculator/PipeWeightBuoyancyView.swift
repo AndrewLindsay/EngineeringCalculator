@@ -61,7 +61,7 @@ struct PipeWeightBuoyancyView: View {
             additionalLayersSection
             materialRequirementsSection
             Section("Layer Stack Used in Calculation") { layerTable }
-            Section("Fluids") {
+            Section(String(localized: "pipeWeight.section.fluids")) {
                 numericField("Internal fluid density (kg/m³)", value: $internalDensity)
                 numericField("External fluid density (kg/m³)", value: $externalDensity)
             }
@@ -69,13 +69,17 @@ struct PipeWeightBuoyancyView: View {
             Section { DisclosureGroup("Calculation Details", isExpanded: $showDetails) { if let d = CalculationRegistry.definition(id: "pipeWeightBuoyancy")?.details { CalculationDetailsView(details: d) } } }
         }
         .formStyle(.grouped)
-        .navigationTitle("Pipe Weight & Buoyancy")
+        .navigationTitle(String(localized: "pipeWeight.title"))
         .toolbar {
             ToolbarItem {
                 if projectUpdateContext != nil {
-                    Button { updateProjectCase() } label: { Label("Update Project Case", systemImage: "arrow.triangle.2.circlepath") }.disabled(result == nil)
+                    Button { updateProjectCase() } label: { Label("Update Project Case", systemImage: "arrow.triangle.2.circlepath") }
+                        .disabled(result == nil)
+                        .help(Text("tooltip.updateProjectCase"))
                 } else {
-                    Button { saveStandaloneCalculation() } label: { Label("Save Calculation…", systemImage: "square.and.arrow.down") }.disabled(result == nil)
+                    Button { saveStandaloneCalculation() } label: { Label("Save Calculation…", systemImage: "square.and.arrow.down") }
+                        .disabled(result == nil)
+                        .help(Text("tooltip.saveCalculation"))
                 }
             }
         }
@@ -122,12 +126,12 @@ struct PipeWeightBuoyancyView: View {
     }
 
     private func saveStandaloneCalculation() {
-        do { calculationExportDocument = StandaloneCalculationFileDocument(document: try makeCurrentDocument(name: "Pipe Weight & Buoyancy")); showingCalculationExporter = true }
+        do { calculationExportDocument = StandaloneCalculationFileDocument(document: try makeCurrentDocument(name: String(localized: "pipeWeight.title"))); showingCalculationExporter = true }
         catch { calculationSaveError = error.localizedDescription }
     }
 
     @ViewBuilder private var pipeGeometrySection: some View {
-        Section("Pipe Geometry") {
+        Section(String(localized: "pipeWeight.section.geometry")) {
             Picker("Inside dimension", selection: $diameterMode) { ForEach(DiameterMode.allCases) { mode in Text(mode.rawValue).tag(mode) } }
             numericField(diameterMode == .diameter ? "Internal Diameter (mm)" : "Internal Radius (mm)", value: $insideValueMM)
             Picker("Pipe material", selection: Binding(get: { selectedPipeMaterialID ?? pipeMaterial?.id }, set: { newID in selectedPipeMaterialID = newID; if newID != openedPipeMaterial?.id { openedPipeMaterial = nil } })) {
@@ -140,18 +144,31 @@ struct PipeWeightBuoyancyView: View {
     }
 
     @ViewBuilder private var additionalLayersSection: some View {
-        Section("Additional Layers") {
+        Section(String(localized: "pipeWeight.section.layers")) {
             ForEach($extraLayers) { $layer in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        VStack(alignment: .leading) { Text(layer.material.name).font(.headline); if let density = layer.material.densityKgM3 { Text("\(density, format: .number.precision(.fractionLength(0))) kg/m³").font(.caption).foregroundStyle(.secondary) } else { Label("Density missing", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.red) } }
-                        Spacer(); Button(role: .destructive) { deleteLayer(id: layer.id) } label: { Image(systemName: "trash") }.buttonStyle(.borderless)
+                        VStack(alignment: .leading) { Text(layer.material.name).font(.headline); if let density = layer.material.densityKgM3 { Text("\(density, format: .number.precision(.fractionLength(0))) kg/m³").font(.caption).foregroundStyle(.secondary) } else { Label(String(localized: "validation.densityMissing"), systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.red) } }
+                        Spacer()
+                        Button(role: .destructive) { deleteLayer(id: layer.id) } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
+                            .help(Text("tooltip.deleteLayer"))
+                            .accessibilityLabel(Text("tooltip.deleteLayer"))
                     }
                     numericField("Thickness (mm)", value: $layer.thicknessMM)
-                    HStack { Button { moveLayer(id: layer.id, offset: -1) } label: { Label("Move Up", systemImage: "arrow.up") }.disabled(isFirst(layer.id)); Button { moveLayer(id: layer.id, offset: 1) } label: { Label("Move Down", systemImage: "arrow.down") }.disabled(isLast(layer.id)) }.buttonStyle(.borderless)
+                    HStack {
+                        Button { moveLayer(id: layer.id, offset: -1) } label: { Label("Move Up", systemImage: "arrow.up") }
+                            .disabled(isFirst(layer.id))
+                            .help(Text("tooltip.moveLayerUp"))
+                        Button { moveLayer(id: layer.id, offset: 1) } label: { Label("Move Down", systemImage: "arrow.down") }
+                            .disabled(isLast(layer.id))
+                            .help(Text("tooltip.moveLayerDown"))
+                    }
+                    .buttonStyle(.borderless)
                 }.padding(.vertical, 5)
             }
             Button { showingAddLayer = true } label: { Label("Add Layer", systemImage: "plus") }
+                .help(Text("tooltip.addLayer"))
         }
     }
 
@@ -177,10 +194,10 @@ struct PipeWeightBuoyancyView: View {
     private var compactLayerList: some View { VStack(spacing: 6) { ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in HStack { Text("\(index + 1). \(layer.name)"); Spacer(); Text(layer.material.densityKgM3.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "Missing") } } } }
 
     @ViewBuilder private var resultsSection: some View {
-        Section("Results") {
+        Section(String(localized: "pipeWeight.section.results")) {
             if let result {
                 resultRow("Final OD", result.finalOuterDiameterM * 1000, "mm"); resultRow("Dry pipe mass", result.pipeMassKgPerM, "kg/m"); resultRow("Dry pipe weight", result.pipeWeightKNPerM, "kN/m"); resultRow("Internal contents", result.contentsMassKgPerM, "kg/m"); resultRow("Displaced external fluid", result.displacedMassKgPerM, "kg/m"); resultRow("Submerged equivalent mass", result.submergedEquivalentMassKgPerM, "kg/m"); resultRow("Submerged weight", result.submergedWeightKNPerM, "kN/m"); LabeledContent("Condition") { Text(result.submergedWeightKNPerM >= 0 ? "Sinks" : "Floats").fontWeight(.semibold) }
-            } else { Label("Results unavailable until all required material properties are present.", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+            } else { Label(String(localized: "validation.calculationUnavailable"), systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
         }
     }
 
@@ -209,6 +226,7 @@ private struct AddPipeLayerView: View {
                 Picker("Material", selection: $selectedMaterialID) { Text("Select a material").tag(nil as UUID?); ForEach(store.categories, id: \.self) { category in Section(category) { ForEach(materials(in: category)) { material in Text(material.name).tag(Optional(material.id)) } } } }
                 if let material = selectedMaterial { LabeledContent("Category") { Text(material.category) }; LabeledContent("Density") { if let density = material.densityKgM3 { Text("\(density.formatted()) kg/m³") } else { Label("Missing – calculation will be blocked", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) } } }
                 Button { showingNewMaterial = true } label: { Label("Create New Material…", systemImage: "plus") }
+                    .help(Text("tooltip.createMaterial"))
             }
             Section("Layer") { LabeledContent("Thickness (mm)") { TextField("Thickness", value: $thicknessMM, format: .number.precision(.fractionLength(0...4))).multilineTextAlignment(.trailing) } }
         }
