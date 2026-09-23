@@ -136,6 +136,19 @@ The reusable material/property framework is foundational infrastructure for subs
 - When an implementation proves structurally unsuitable, replace the problematic architecture rather than indefinitely layering compensating offsets/workarounds on top of it.
 - Record important rejected approaches in `DEVELOPMENT_STATUS.md` when doing so will prevent the same dead end being repeated later.
 
+## Localization and user-facing text
+
+- Treat localization as standard UI infrastructure, not a late translation pass.
+- `EngineeringCalculator/Localizable.xcstrings` is the canonical String Catalog for natural-language UI text, tooltips/help text, accessibility descriptions, validation/error messages and explanatory copy.
+- English (`en`) is the source language. Add additional languages as localizations **inside the same String Catalog** rather than creating an unrelated Swift source file per language.
+- Prefer stable semantic keys such as `navigation.back`, `tooltip.openCalculation`, `pipeWeight.section.results`, and `validation.densityMissing` instead of using the full English sentence as the programmatic identity of important strings.
+- Give translator comments/context for strings whose engineering meaning or UI purpose is not obvious.
+- As screens are touched, progressively migrate hard-coded user-facing natural-language strings into the String Catalog rather than requiring a risky whole-application conversion at once.
+- Tooltips/help text added during UI work should be localizable from the outset.
+- Keep engineering data and natural language separate. Do **not** translate material/standard designations, persisted machine identifiers, document extensions, variable symbols, equation notation, or physical unit symbols such as `kg/m³`, `kN/m`, `ρ`, `D`, `OD`, `.eccalc`, and `.ecproject` unless a future explicit formatting requirement calls for locale-specific presentation.
+- Localized display text must never become a persistence key or engineering identifier. Persist stable IDs/UUIDs/machine identifiers independently of the language shown to the user.
+- When adding a new language, use Xcode's project localization/String Catalog workflow, supply translations for the existing keys, review layout expansion/truncation, and regression-test engineering screens in that locale.
+
 ## Change discipline
 
 Before making a substantial change:
