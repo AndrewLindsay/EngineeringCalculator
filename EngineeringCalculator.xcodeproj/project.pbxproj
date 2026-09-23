@@ -41,6 +41,7 @@
 		6F9E4F1B3062A83A009583AE /* ProjectWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1A3062A83A009583AE /* ProjectWorkspaceView.swift */; };
 		6F9E4F1E306390CB009583AE /* ProjectLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1C306390CB009583AE /* ProjectLibraryStore.swift */; };
 		6F9E4F1F306390CB009583AE /* ProjectLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1D306390CB009583AE /* ProjectLibraryView.swift */; };
+		6F9E4F233063EF15009583AE /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 6F9E4F223063EF15009583AE /* Localizable.xcstrings */; };
 		A001 /* EngineeringCalculatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* EngineeringCalculatorApp.swift */; };
 		A002 /* CalculationDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* CalculationDefinition.swift */; };
 		A003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* HomeView.swift */; };
@@ -102,6 +103,7 @@
 		6F9E4F1A3062A83A009583AE /* ProjectWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceView.swift; sourceTree = "<group>"; };
 		6F9E4F1C306390CB009583AE /* ProjectLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectLibraryStore.swift; sourceTree = "<group>"; };
 		6F9E4F1D306390CB009583AE /* ProjectLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectLibraryView.swift; sourceTree = "<group>"; };
+		6F9E4F223063EF15009583AE /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F001 /* EngineeringCalculatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringCalculatorApp.swift; sourceTree = "<group>"; };
 		F002 /* CalculationDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDefinition.swift; sourceTree = "<group>"; };
 		F003 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -151,6 +153,7 @@
 		GAPP /* EngineeringCalculator */ = {
 			isa = PBXGroup;
 			children = (
+				6F9E4F223063EF15009583AE /* Localizable.xcstrings */,
 				6F9E4F1C306390CB009583AE /* ProjectLibraryStore.swift */,
 				6F9E4F1D306390CB009583AE /* ProjectLibraryView.swift */,
 				6F9E4F1A3062A83A009583AE /* ProjectWorkspaceView.swift */,
@@ -163,9 +166,9 @@
 				6F9E4F0030629024009583AE /* CalculationDocumentFileIO.swift */,
 				6F9E4EFC30628D5C009583AE /* MaterialReconciliation.swift */,
 				6F9E4EF630628B89009583AE /* MaterialFingerprint.swift */,
+				6F9E4EEC30621F7F009583AE /* PipeHeatTransferCalculator.swift */,
 				6F9E4EF230628927009583AE /* CalculationPersistence.swift */,
 				6F9E4EEE30621F8F009583AE /* PipeHeatTransferView.swift */,
-				6F9E4EEC30621F7F009583AE /* PipeHeatTransferCalculator.swift */,
 				6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */,
 				6F9E4EE2305F933B009583AE /* MaterialComparison.swift */,
 				6F9E4EE8305FA001009583AE /* MacMaterialComparisonGrid.swift */,
@@ -311,6 +314,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F9E4F233063EF15009583AE /* Localizable.xcstrings in Resources */,
 				6F25CC72305D4DAF00862599 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
