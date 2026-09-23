@@ -55,6 +55,8 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
                     } label: {
                         Label("Open Calculation…", systemImage: "folder")
                     }
+                    .help(String(localized: "tooltip.openCalculation"))
+                    .accessibilityLabel(String(localized: "tooltip.openCalculation"))
                 }
             }
             .onAppear { restoreInitialDocumentIfNeeded() }
