@@ -18,7 +18,7 @@ struct ProjectWorkspaceView: View {
     @State private var errorMessage: String?
     @State private var showingUnsavedProjectAlert = false
     @State private var dismissAfterSave = false
-    private let sourceURL: URL?
+    @State private var sourceURL: URL?
 
     init(initialDocument: CalculationDocument? = nil, sourceURL: URL? = nil) {
         let model: ProjectWorkspaceModel
@@ -26,10 +26,14 @@ struct ProjectWorkspaceView: View {
         else { model = ProjectWorkspaceModel() }
         _workspace = State(initialValue: model)
         _savedDocument = State(initialValue: model.document)
-        self.sourceURL = sourceURL
+        _sourceURL = State(initialValue: sourceURL)
     }
 
-    private var isDirty: Bool { workspace.document != savedDocument }
+    /// A project with no backing .ecproject file is unsaved even when its in-memory
+    /// document has not changed since the workspace was created. This is especially
+    /// important for New Project and Create Independent Copy: leaving either workspace
+    /// must not silently discard the only copy of the project.
+    private var isDirty: Bool { sourceURL == nil || workspace.document != savedDocument }
 
     var body: some View {
         List(selection: $selectedCalculationID) {
@@ -92,6 +96,7 @@ struct ProjectWorkspaceView: View {
             switch result {
             case .success(let url):
                 projectLibrary.register(document: workspace.document, at: url)
+                sourceURL = url
                 savedDocument = workspace.document
                 if dismissAfterSave { dismissAfterSave = false; dismiss() }
             case .failure(let error):
@@ -175,7 +180,7 @@ struct ProjectWorkspaceView: View {
     }
 
     private func openProject(_ result: Result<[URL], Error>) {
-        do { guard let url = try result.get().first else { return }; let document = try readSecurityScopedDocument(from: url); guard document.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: CalculationDocumentFileType.standaloneExtension) }; workspace = try ProjectWorkspaceModel(document: document); savedDocument = document; projectLibrary.register(document: document, at: url); selectedCalculationID = nil } catch { errorMessage = error.localizedDescription }
+        do { guard let url = try result.get().first else { return }; let document = try readSecurityScopedDocument(from: url); guard document.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: CalculationDocumentFileType.standaloneExtension) }; workspace = try ProjectWorkspaceModel(document: document); savedDocument = document; sourceURL = url; projectLibrary.register(document: document, at: url); selectedCalculationID = nil } catch { errorMessage = error.localizedDescription }
     }
 
     private func importCalculation(_ result: Result<[URL], Error>) {
