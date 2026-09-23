@@ -15,7 +15,7 @@ Text("Drag calculators to rearrange them. Your preferred order is saved on this 
 #if os(iOS)
 EditButton()
 #endif
-NavigationLink(value:"propertyInspector"){Image(systemName:"chart.xyaxis.line")}.help("Material property inspector");NavigationLink(value:"materials"){Image(systemName:"books.vertical")}.help("Material library");NavigationLink(value:"settings"){Image(systemName:"gearshape")}.help("Interface settings")}.navigationDestination(for:String.self){id in switch id{case "projects":ProjectWorkspaceView();case "pipeWeightBuoyancy":PipeWeightBuoyancyView();case "pipeHeatTransfer":PipeHeatTransferView();case "propertyInspector":MaterialPropertyInspectorView();case "materials":MaterialLibraryView();case "settings":SettingsView();default:PlaceholderCalculatorView()}}}}
+NavigationLink(value:"propertyInspector"){Image(systemName:"chart.xyaxis.line")}.help("Material property inspector");NavigationLink(value:"materials"){Image(systemName:"books.vertical")}.help("Material library");NavigationLink(value:"settings"){Image(systemName:"gearshape")}.help("Interface settings")}.navigationDestination(for:String.self){id in switch id{case "projects":ProjectLibraryView();case "pipeWeightBuoyancy":PipeWeightBuoyancyView();case "pipeHeatTransfer":PipeHeatTransferView();case "propertyInspector":MaterialPropertyInspectorView();case "materials":MaterialLibraryView();case "settings":SettingsView();default:PlaceholderCalculatorView()}}}}
     private func move(from source:IndexSet,to destination:Int){var items=orderedCalculations;items.move(fromOffsets:source,toOffset:destination);storedOrder=items.map(\.id).joined(separator:",")}
 }
 
