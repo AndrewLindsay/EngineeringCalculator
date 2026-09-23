@@ -80,7 +80,15 @@ struct ProjectWorkspaceView: View {
         let document = standaloneDocument(for: calculation)
         switch calculation.calculatorID {
         case PipeWeightBuoyancyPersistence.calculatorID:
-            PipeWeightBuoyancyView().environment(\.initialStandaloneCalculationDocument, document)
+            PipeWeightBuoyancyView()
+                .environment(\.initialStandaloneCalculationDocument, document)
+                .environment(\.projectCalculationUpdateContext, ProjectCalculationUpdateContext(
+                    calculationID: calculation.id,
+                    calculationName: calculation.name,
+                    update: { updatedDocument in
+                        try updateProjectCalculation(id: calculation.id, from: updatedDocument)
+                    }
+                ))
         default:
             ContentUnavailableView("Project Case Not Yet Editable", systemImage: "wrench.and.screwdriver", description: Text("\(title(for: calculation.calculatorID)) is stored safely in this project, but live project editing has not yet been connected for this calculator."))
                 .navigationTitle(calculation.name)
@@ -89,6 +97,18 @@ struct ProjectWorkspaceView: View {
 
     private func standaloneDocument(for calculation: SavedCalculation) -> CalculationDocument {
         CalculationDocument(kind: .standaloneCalculation, title: calculation.name, createdAt: calculation.createdAt, modifiedAt: calculation.modifiedAt, calculations: [calculation], embeddedMaterials: workspace.embeddedMaterials)
+    }
+
+    private func updateProjectCalculation(id: UUID, from document: CalculationDocument) throws {
+        guard document.kind == .standaloneCalculation else { throw ProjectWorkspaceError.notAStandaloneCalculation }
+        guard document.calculations.count == 1, let updatedCalculation = document.calculations.first else {
+            throw ProjectWorkspaceError.invalidStandaloneCalculationCount(document.calculations.count)
+        }
+        try workspace.updateProjectCalculation(
+            id: id,
+            with: updatedCalculation,
+            embeddedMaterials: document.embeddedMaterials
+        )
     }
 
     @ViewBuilder private func calculationRow(_ calculation: SavedCalculation) -> some View {
