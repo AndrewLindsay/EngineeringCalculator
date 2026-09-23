@@ -162,7 +162,7 @@ struct ProjectWorkspaceView: View {
             guard let url = try result.get().first else { return }
             let document = try readSecurityScopedDocument(from: url)
             guard document.kind == .project else {
-                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension)
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: CalculationDocumentFileType.standaloneExtension)
             }
             workspace = try ProjectWorkspaceModel(document: document)
             selectedCalculationID = nil
@@ -176,7 +176,7 @@ struct ProjectWorkspaceView: View {
             guard let url = try result.get().first else { return }
             let document = try readSecurityScopedDocument(from: url)
             guard document.kind == .standaloneCalculation else {
-                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .standaloneCalculation, actualExtension: url.pathExtension)
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .standaloneCalculation, actualExtension: CalculationDocumentFileType.projectExtension)
             }
             guard let importedID = document.calculations.first?.id else {
                 throw ProjectWorkspaceError.invalidStandaloneCalculationCount(document.calculations.count)
@@ -188,10 +188,21 @@ struct ProjectWorkspaceView: View {
         }
     }
 
+    /// SwiftUI's fileImporter may vend a security-scoped provider URL whose temporary
+    /// filename has no Engineering Calculator extension. The importer has already filtered
+    /// the user's selection by UTType, so decode the payload directly here and validate its
+    /// document kind in the calling operation instead of validating the provider URL suffix.
     private func readSecurityScopedDocument(from url: URL) throws -> CalculationDocument {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
-        return try CalculationDocumentFileIO.read(from: url)
+        do {
+            let data = try Data(contentsOf: url)
+            return try CalculationDocumentFileIO.document(from: data)
+        } catch let error as CalculationDocumentCodecError {
+            throw error
+        } catch {
+            throw CalculationDocumentFileError.cannotRead(error.localizedDescription)
+        }
     }
 
     private func title(for calculatorID: String) -> String {
