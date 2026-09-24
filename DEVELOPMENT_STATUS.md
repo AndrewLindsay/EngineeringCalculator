@@ -1,32 +1,30 @@
 # Engineering Calculator — Development Status & Roadmap
 
-**Last updated:** 23 September 2026  
-**Status:** **SAFE HOLD POINT — known-good 183-test checkpoint; resume development 24 September 2026**  
+**Last updated:** 24 September 2026  
+**Status:** **SAFE HOLD POINT — known-good 183-test checkpoint; macOS Project Library recovery verified**  
 **Active development branch:** `feature/portable-calculation-documents`  
 **Earlier recovery branch:** `checkpoint/project-library-171-tests`  
-**Current focus:** portable self-contained calculation/project documents and robust Project Library file access  
+**Current focus:** physical-device/document-provider validation and Mac ↔ iPhone portability  
 **Last user-verified automated checkpoint:** **183 tests passed, 0 failures**
 
 Read `AGENTS.md` first, then this file whenever resuming or refreshing development status.
 
-# RESUME HERE TOMORROW
+# RESUME HERE
 
 This is the authoritative restart point.
 
 1. Confirm branch `feature/portable-calculation-documents`.
 2. Run `git pull`, `git status`, and `git branch --show-current`.
 3. Build the macOS target and run the complete suite with **⌘U** before/after substantive changes. Expected baseline: **183/183 tests passing**.
-4. Do **not** reimplement project-owned calculation editing, dirty-state handling, independent project copies, or UUID-based project identity; these are established and tested.
-5. Begin with **Project Library persistence/relaunch robustness and security-scoped access**.
-6. First perform the real macOS integration test: create/save or import an `.ecproject`, fully quit Engineering Calculator, relaunch it, and reopen that project from Project Library.
-7. If the stored URL cannot be accessed after relaunch, implement durable security-scoped bookmark persistence/resolution.
-8. Bookmark/location is only a locator. **Project UUID remains authoritative identity and the `.ecproject` file remains authoritative project data.**
-9. Add stale/moved/deleted/inaccessible-file recovery. Never silently create a replacement project.
-10. After relaunch robustness is proven, continue to physical-iPhone/document-provider and Mac ↔ iPhone portability testing.
+4. Do **not** reimplement project-owned calculation editing, dirty-state handling, independent project copies, UUID-based project identity, or the macOS Project Library recovery workflow; these are established and tested.
+5. Proceed to **physical iPhone / Files / iCloud Drive document-provider testing**.
+6. Then test **Mac ↔ iPhone portability** of both `.eccalc` and `.ecproject` documents.
+7. Treat the `.ecproject` file as authoritative project data and the persistent project UUID as authoritative identity.
+8. Add security-scoped-bookmark hardening only if real physical-device/document-provider testing demonstrates that the existing persistent file access is insufficient.
 
 # CHECKPOINT SUMMARY
 
-The portable-document architecture now covers standalone calculation persistence, material reconciliation, project persistence, persistent Project Library, project-owned calculation opening/editing, explicit dirty-state handling, independent copies and UUID-based duplicate detection.
+The portable-document architecture now covers standalone calculation persistence, material reconciliation, project persistence, persistent Project Library, project-owned calculation opening/editing, explicit dirty-state handling, independent copies, UUID-based duplicate detection, and macOS Project Library relaunch/recovery behaviour.
 
 User-verified at this checkpoint:
 
@@ -42,11 +40,11 @@ User-verified at this checkpoint:
 - opening the same project UUID from another filename/location updates the existing Project Library identity rather than creating a second logical project;
 - creating an independent copy gives it a new project UUID and preserves calculations/materials;
 - project-owned Pipe Weight & Buoyancy calculations open through the normal live calculator restoration path using embedded material snapshots;
-- editing a project-owned calculation marks it dirty; leaving it prompts the user to Update Project / Discard Changes / Cancel;
+- editing a project-owned calculation marks it dirty; leaving it prompts Update Project / Discard Changes / Cancel;
 - updating a calculation changes the in-memory project but does not silently overwrite the `.ecproject` file;
 - leaving a dirty project prompts Save / Don't Save / Cancel;
-- Don't Save returns to the last persisted project state rather than accidentally committing in-memory edits;
-- a newly created independent copy is dirty until explicitly saved, preventing the back arrow from silently losing it;
+- Don't Save returns to the last persisted project state;
+- a newly created independent copy is dirty until explicitly saved;
 - Project Library identity survives `ProjectLibraryStore` reload in automated coverage;
 - localization/tooltips remain established infrastructure using `Localizable.xcstrings`.
 
@@ -54,7 +52,7 @@ User-verified at this checkpoint:
 
 The full user-run Xcode suite is green at **183/183**.
 
-Coverage includes the established material framework and portable-document foundation plus the project lifecycle regression layer:
+Coverage includes:
 
 - material scalar/table/equation property persistence and resolution;
 - material validation/requirements and calculator blocking when required properties are missing;
@@ -79,33 +77,64 @@ Coverage includes the established material framework and portable-document found
 - genuinely independent project UUIDs create separate Project Library entries;
 - project identity persists across `ProjectLibraryStore` reload.
 
+# MACOS PROJECT LIBRARY PERSISTENCE / RECOVERY — VERIFIED 24 SEPTEMBER 2026
+
+The previously outstanding real application-lifecycle and filesystem recovery tests have now been completed successfully.
+
+Manually verified:
+
+- [x] Catalogue/open a real `.ecproject` through the normal macOS workflow.
+- [x] Fully terminate Engineering Calculator and relaunch it.
+- [x] Reopen the project successfully from Project Library after relaunch.
+- [x] Rename/move the project within the filesystem and confirm the application continues to track it.
+- [x] Permanently delete the referenced original and confirm the project becomes unavailable rather than being silently replaced.
+- [x] Create an independently copied, byte-identical recovery `.ecproject` and verify its bytes before the destructive test.
+- [x] Use **Find Project** to reconnect the missing Project Library entry to that identical copy.
+- [x] Attempt to substitute a different project and confirm the project/fingerprint checks reject it.
+- [x] Fully quit/relaunch again and confirm the recovered project remains linked and opens normally.
+
+## Interpretation
+
+The existing macOS persistent reference mechanism is robust enough for the tested local-filesystem lifecycle. A normal Finder rename/move does **not** require Find Project.
+
+**Find Project remains useful as an exceptional recovery/migration mechanism** when the original file has been deleted or become inaccessible but an identical/restored copy exists elsewhere. The identity/fingerprint checks prevent it from silently reconnecting the catalogue entry to an unrelated project.
+
+Do **not** add security-scoped-bookmark complexity merely because it was previously anticipated. The current macOS behaviour is working. Security-scoped bookmarks remain a fallback if physical-device, iCloud Drive or other document-provider testing demonstrates a real persistence/access failure.
+
 # STILL REQUIRING INTEGRATION / MANUAL COVERAGE
 
-Do not infer the following solely from the 183 green tests:
+Do not infer the following solely from the 183 green tests or the successful macOS local-filesystem testing:
 
-- Project Library access across a **full application termination and relaunch** for files selected outside the app sandbox;
-- durable security-scoped bookmark/access behaviour for externally selected files;
-- moved/renamed/deleted external project-file recovery behaviour;
-- real document-picker/iCloud-provider behaviour on physical devices;
+- real document-picker/Files/iCloud-provider behaviour on a physical iPhone/iPad;
+- persistent access after physical-device termination/relaunch;
+- iCloud/document-provider move/rename/offline/access behaviour;
 - cross-device Mac ↔ iPhone portability;
-- complete tooltip/accessibility and localization audit.
+- complete tooltip/accessibility and localization audit;
+- final light/dark mode and interface-density visual checks for the project workflow.
 
-# EXACT NEXT DEVELOPMENT TASK — PROJECT LIBRARY RELAUNCH ROBUSTNESS
-
-The next substantive task is to validate and, if required, harden persistent access to Project Library files across application relaunch.
+# EXACT NEXT VALIDATION PHASE — PHYSICAL IPHONE / DOCUMENT PROVIDERS
 
 Required workflow:
 
-1. Create/save or import a real `.ecproject` through the normal macOS picker workflow.
-2. Confirm the Project Library entry points to that authoritative project file.
-3. Fully terminate Engineering Calculator — not merely navigate back to Home.
-4. Relaunch the application and reopen the project from Project Library.
-5. Determine whether the stored URL retains sandbox access after relaunch.
-6. If not, implement persistent security-scoped bookmark storage/resolution for external project files.
-7. Preserve the architectural rule that the `.ecproject` file is authoritative and Project Library remains only a catalogue/locator.
-8. Detect stale/moved/deleted/inaccessible files and present a clear recovery path; never silently create a replacement project.
-9. Add deterministic automated coverage for bookmark/catalogue persistence logic where platform APIs permit it.
-10. Repeat the real terminate/relaunch test, then proceed to physical-iPhone/document-provider and cross-device portability testing.
+1. Install and launch the current build on a physical iPhone.
+2. Verify Project Library layout, navigation and controls at phone width.
+3. Create a named project on iPhone and verify rename behaviour persists.
+4. Save/export `.eccalc` and `.ecproject` files through Files/iCloud Drive and confirm correct extensions.
+5. Import/open `.eccalc` and `.ecproject` through the iOS document picker.
+6. Verify project-owned Pipe Weight & Buoyancy cases restore every input/layer/material correctly.
+7. Open → edit → Update Project → Save Project → terminate app → relaunch → reopen and verify edited state/results persist.
+8. Verify embedded project materials do not silently populate or overwrite the global Material Library.
+9. Exercise moved/renamed/deleted project files through the actual document provider where practical.
+10. If persistent access fails, investigate security-scoped bookmark persistence/resolution; otherwise leave the simpler working mechanism intact.
+11. Proceed to Mac ↔ iPhone portability testing.
+
+# CROSS-DEVICE PORTABILITY AFTER PHYSICAL-DEVICE VALIDATION
+
+- [ ] Mac → iPhone `.eccalc` with a clean/different local material library reproduces the saved result.
+- [ ] Mac → iPhone `.ecproject` reproduces project calculations without originating library materials.
+- [ ] Repeat iPhone → Mac.
+- [ ] Exercise the same project through iCloud Drive where practical.
+- [ ] Confirm the portable file remains authoritative and no device-local material library is required to reproduce the calculation.
 
 # ARCHITECTURE DECISIONS TO PRESERVE
 
@@ -131,7 +160,7 @@ Opening another file representing the same project UUID must not silently create
 
 The Project Library is a catalogue, not a second copy of project data. The `.ecproject` file remains authoritative. Catalogue metadata may include project UUID, title, file location, calculation count and modified date.
 
-Persistent access to externally selected files must respect macOS/iOS sandboxing. If plain URLs do not survive relaunch reliably, store security-scoped bookmarks rather than copying project contents into the catalogue.
+Persistent external-file access must respect platform sandboxing/document-provider behaviour. The tested macOS local-filesystem mechanism currently survives relaunch and file moves. Add security-scoped bookmark persistence only if another supported environment demonstrates that it is necessary.
 
 ## Material reconciliation
 
@@ -140,25 +169,6 @@ Persistent access to externally selected files must respect macOS/iOS sandboxing
 - UUID present but content differs: report a conflict; never silently overwrite.
 - Imported data must not gain protected built-in status from untrusted metadata.
 - Historical calculations continue using their embedded definition unless the user deliberately adopts a different definition.
-
-# PLATFORM TESTING AFTER RELAUNCH ROBUSTNESS
-
-## Physical iPhone / iPad
-
-- [ ] Install and launch the current project-document build on a physical iPhone.
-- [ ] Verify Project Library layout and controls at phone width.
-- [ ] Create/save a project and verify `.ecproject` handling through Files/iCloud Drive.
-- [ ] Import/open `.eccalc` and `.ecproject` through Files/iCloud Drive.
-- [ ] Open/edit/update/save/relaunch/reopen a project-owned Pipe Weight & Buoyancy case.
-- [ ] Verify embedded project materials do not silently overwrite the global Material Library.
-- [ ] Test externally moved/renamed/deleted catalogued project files.
-
-## Cross-device portability
-
-- [ ] Mac → iPhone `.eccalc` with a clean/different local material library reproduces saved result.
-- [ ] Mac → iPhone `.ecproject` reproduces project calculations without originating library materials.
-- [ ] Repeat iPhone → Mac.
-- [ ] Exercise the same project through iCloud Drive where practical.
 
 # DEFERRED ROADMAP — AFTER PROJECT DOCUMENTS ARE STABLE
 
@@ -188,7 +198,7 @@ Development branch:
 feature/portable-calculation-documents
 ```
 
-Earlier known-good recovery branch:
+Earlier recovery branch:
 
 ```text
 checkpoint/project-library-171-tests
@@ -219,4 +229,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-The 171-test checkpoint branch remains useful for historical recovery, but it predates the completed project lifecycle/dirty-state work. Prefer the current feature branch for ongoing development.
+The 171-test checkpoint branch remains useful for historical recovery, but it predates the completed project lifecycle/dirty-state and recovery work. Prefer the current feature branch for ongoing development.
