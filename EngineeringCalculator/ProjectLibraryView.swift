@@ -65,13 +65,80 @@ struct ProjectLibraryView: View {
 
 private struct CataloguedProjectLoaderView: View {
     @EnvironmentObject private var projectLibrary: ProjectLibraryStore
+    @Environment(\.dismiss) private var dismiss
     let entry: ProjectLibraryEntry
     @State private var document: CalculationDocument?
     @State private var resolvedURL: URL?
     @State private var errorMessage: String?
-    var body: some View { Group { if let document { ProjectWorkspaceView(initialDocument: document, sourceURL: resolvedURL) } else if let errorMessage { ContentUnavailableView("Project Could Not Be Opened", systemImage: "exclamationmark.triangle", description: Text(errorMessage)) } else { ProgressView("Opening \(entry.title)…") } }.task { load() } }
+    @State private var showingRelinker = false
+    @State private var relinkError: String?
+
+    var body: some View {
+        Group {
+            if let document {
+                ProjectWorkspaceView(initialDocument: document, sourceURL: resolvedURL)
+            } else if let errorMessage {
+                ContentUnavailableView {
+                    Label("Project Could Not Be Opened", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(errorMessage)
+                } actions: {
+                    Button("Locate Project…") { showingRelinker = true }
+                        .buttonStyle(.borderedProminent)
+                    Button("Remove from Project List", role: .destructive) {
+                        projectLibrary.remove(id: entry.id)
+                        dismiss()
+                    }
+                    Button("Back") { dismiss() }
+                }
+            } else {
+                ProgressView("Opening \(entry.title)…")
+            }
+        }
+        .fileImporter(isPresented: $showingRelinker, allowedContentTypes: [.engineeringProject], allowsMultipleSelection: false) { result in
+            relinkProject(result)
+        }
+        .alert("Project Could Not Be Relinked", isPresented: Binding(get: { relinkError != nil }, set: { if !$0 { relinkError = nil } })) {
+            Button("OK", role: .cancel) { relinkError = nil }
+        } message: {
+            Text(relinkError ?? "")
+        }
+        .task { load() }
+    }
+
     private func load() {
         guard document == nil, errorMessage == nil else { return }
-        do { let url = try projectLibrary.resolvedURL(for: entry); let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }; let data = try Data(contentsOf: url); let decoded = try CalculationDocumentFileIO.document(from: data); guard decoded.kind == .project else { throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension) }; projectLibrary.refresh(entry, with: decoded); resolvedURL = url; document = decoded } catch { errorMessage = error.localizedDescription }
+        do {
+            let url = try projectLibrary.resolvedURL(for: entry)
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let decoded = try CalculationDocumentFileIO.document(from: data)
+            guard decoded.kind == .project else {
+                throw CalculationDocumentFileError.fileKindDoesNotMatchExtension(expected: .project, actualExtension: url.pathExtension)
+            }
+            projectLibrary.refresh(entry, with: decoded)
+            resolvedURL = url
+            document = decoded
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func relinkProject(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let decoded = try CalculationDocumentFileIO.document(from: data)
+            try projectLibrary.relink(entry, to: url, document: decoded)
+
+            resolvedURL = url.standardizedFileURL
+            document = decoded
+            errorMessage = nil
+        } catch {
+            relinkError = error.localizedDescription
+        }
     }
 }
