@@ -28,13 +28,19 @@ struct ProjectLibraryEntry: Codable, Identifiable, Hashable {
     }
 }
 
-enum ProjectLibraryAccessError: LocalizedError {
+enum ProjectLibraryAccessError: LocalizedError, Equatable {
     case bookmarkResolutionFailed(String)
+    case replacementIsNotProject
+    case projectIdentityMismatch(expected: UUID, found: UUID)
 
     var errorDescription: String? {
         switch self {
         case .bookmarkResolutionFailed(let title):
-            return "The saved location for ‘\(title)’ could not be accessed. Remove the project from the list and open it again to restore access."
+            return "The saved location for ‘\(title)’ could not be accessed. Locate the project file to restore access, or remove the project from the list."
+        case .replacementIsNotProject:
+            return "The selected file is not an Engineering Calculator project. Choose the original .ecproject file for this project."
+        case let .projectIdentityMismatch(expected, found):
+            return "The selected project has a different project identity. Expected \(expected.uuidString), but found \(found.uuidString). The Project Library entry was not changed."
         }
     }
 }
@@ -97,6 +103,28 @@ final class ProjectLibraryStore: ObservableObject {
         entries[index].title = document.title
         entries[index].calculationCount = document.calculations.count
         entries[index].modifiedAt = document.modifiedAt
+        sortAndPersist()
+    }
+
+    /// Repairs the saved location for an existing library entry. The project UUID is
+    /// authoritative: a different project can never silently replace the missing one.
+    /// Legacy entries without a project UUID are upgraded after the selected file is validated.
+    func relink(_ entry: ProjectLibraryEntry, to url: URL, document: CalculationDocument) throws {
+        guard document.kind == .project else {
+            throw ProjectLibraryAccessError.replacementIsNotProject
+        }
+        if let expectedID = entry.projectID, expectedID != document.id {
+            throw ProjectLibraryAccessError.projectIdentityMismatch(expected: expectedID, found: document.id)
+        }
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+
+        let standardizedURL = url.standardizedFileURL
+        entries[index].projectID = document.id
+        entries[index].title = document.title
+        entries[index].fileURL = standardizedURL
+        entries[index].calculationCount = document.calculations.count
+        entries[index].modifiedAt = document.modifiedAt
+        entries[index].bookmarkData = makeBookmark(for: standardizedURL)
         sortAndPersist()
     }
 
