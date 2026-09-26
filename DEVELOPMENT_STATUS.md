@@ -1,10 +1,10 @@
 # Engineering Calculator — Development Status & Roadmap
 
-**Last updated:** 24 September 2026  
-**Status:** **SAFE HOLD POINT — known-good 183-test checkpoint; macOS Project Library recovery verified**  
+**Last updated:** 26 September 2026  
+**Status:** **SAFE HOLD POINT — physical iPhone/iCloud and bidirectional Mac ↔ iPhone portability verified; 183-test checkpoint green**  
 **Active development branch:** `feature/portable-calculation-documents`  
 **Earlier recovery branch:** `checkpoint/project-library-171-tests`  
-**Current focus:** physical-device/document-provider validation and Mac ↔ iPhone portability  
+**Current focus:** portable calculation/project document milestone validated; select next roadmap phase  
 **Last user-verified automated checkpoint:** **183 tests passed, 0 failures**
 
 Read `AGENTS.md` first, then this file whenever resuming or refreshing development status.
@@ -16,21 +16,25 @@ This is the authoritative restart point.
 1. Confirm branch `feature/portable-calculation-documents`.
 2. Run `git pull`, `git status`, and `git branch --show-current`.
 3. Build the macOS target and run the complete suite with **⌘U** before/after substantive changes. Expected baseline: **183/183 tests passing**.
-4. Do **not** reimplement project-owned calculation editing, dirty-state handling, independent project copies, UUID-based project identity, or the macOS Project Library recovery workflow; these are established and tested.
-5. Proceed to **physical iPhone / Files / iCloud Drive document-provider testing**.
-6. Then test **Mac ↔ iPhone portability** of both `.eccalc` and `.ecproject` documents.
-7. Treat the `.ecproject` file as authoritative project data and the persistent project UUID as authoritative identity.
-8. Add security-scoped-bookmark hardening only if real physical-device/document-provider testing demonstrates that the existing persistent file access is insufficient.
+4. Physical iPhone / Files / iCloud Drive validation and bidirectional Mac ↔ iPhone portability of `.eccalc` and `.ecproject` have now been manually verified.
+5. Do **not** reimplement standalone in-place Save/Save As, project-owned calculation editing, dirty-state handling, independent project copies, UUID-based project identity, or the Project Library recovery workflow; these are established and tested.
+6. Treat `.eccalc` / `.ecproject` files as authoritative portable engineering data and persistent UUIDs as authoritative identity.
+7. The Project Library is cached catalogue metadata; externally changed project metadata may remain stale until the authoritative project is opened, after which the library refreshes correctly.
+8. Select the next roadmap phase rather than adding more portability infrastructure without a demonstrated failure.
 
 # CHECKPOINT SUMMARY
 
-The portable-document architecture now covers standalone calculation persistence, material reconciliation, project persistence, persistent Project Library, project-owned calculation opening/editing, explicit dirty-state handling, independent copies, UUID-based duplicate detection, and macOS Project Library relaunch/recovery behaviour.
+The portable-document architecture now covers standalone calculation persistence, material reconciliation, project persistence, persistent Project Library, project-owned calculation opening/editing, explicit dirty-state handling, independent copies, UUID-based duplicate detection, macOS Project Library relaunch/recovery behaviour, physical iPhone document-provider operation, and bidirectional Mac ↔ iPhone portability through iCloud Drive.
 
 User-verified at this checkpoint:
 
-- **183 tests passed, 0 failures** in the complete Xcode test suite;
+- **183 tests passed, 0 failures** in the complete Xcode test suite after the iOS Save/Save As changes;
 - standalone Pipe Weight & Buoyancy `.eccalc` save/export/open works, including multi-layer cases;
 - `.eccalc` and `.ecproject` extensions are appended/registered correctly through the implemented document workflow;
+- iOS standalone calculations support true in-place **Save** to an opened document and **Save As…** for an independent file;
+- Save As creates an independent file association, and subsequent Save operations update only the file actually opened/selected;
+- standalone document/calculation identity is preserved during in-place Save and Save As from an opened calculation;
+- `.eccalc` data edited on Mac reopens correctly on iPhone, and the reverse portability path is verified;
 - project model supports multiple calculations and embedded material definitions;
 - importing a standalone calculation into a project creates a project-owned snapshot rather than a live link to the original file;
 - identical project materials are deduplicated and same-UUID/different-definition conflicts are rejected rather than silently overwritten;
@@ -46,11 +50,15 @@ User-verified at this checkpoint:
 - Don't Save returns to the last persisted project state;
 - a newly created independent copy is dirty until explicitly saved;
 - Project Library identity survives `ProjectLibraryStore` reload in automated coverage;
+- physical iPhone project opening reads the current authoritative `.ecproject` even when cached Project Library metadata was created before an external Mac edit;
+- after opening an externally modified project, the Project Library refreshes its cached calculation count correctly;
+- Mac → iPhone `.ecproject` changes, including newly added cases, were verified with correct values;
+- iPhone → Mac `.ecproject` changes were verified by adding a case and deleting an existing case on iPhone, with the resulting project opening correctly on Mac;
 - localization/tooltips remain established infrastructure using `Localizable.xcstrings`.
 
 # AUTOMATED TEST STATUS
 
-The full user-run Xcode suite is green at **183/183**.
+The full user-run Xcode suite is green at **183/183** after the physical-device Save/Save As implementation.
 
 Coverage includes:
 
@@ -79,8 +87,6 @@ Coverage includes:
 
 # MACOS PROJECT LIBRARY PERSISTENCE / RECOVERY — VERIFIED 24 SEPTEMBER 2026
 
-The previously outstanding real application-lifecycle and filesystem recovery tests have now been completed successfully.
-
 Manually verified:
 
 - [x] Catalogue/open a real `.ecproject` through the normal macOS workflow.
@@ -93,48 +99,47 @@ Manually verified:
 - [x] Attempt to substitute a different project and confirm the project/fingerprint checks reject it.
 - [x] Fully quit/relaunch again and confirm the recovered project remains linked and opens normally.
 
-## Interpretation
+**Find Project remains an exceptional recovery/migration mechanism** when the original file has been deleted or become inaccessible but an identical/restored copy exists elsewhere. Identity/fingerprint checks prevent reconnection to an unrelated project.
 
-The existing macOS persistent reference mechanism is robust enough for the tested local-filesystem lifecycle. A normal Finder rename/move does **not** require Find Project.
+# PHYSICAL IPHONE / ICLOUD / CROSS-DEVICE VALIDATION — VERIFIED 26 SEPTEMBER 2026
 
-**Find Project remains useful as an exceptional recovery/migration mechanism** when the original file has been deleted or become inaccessible but an identical/restored copy exists elsewhere. The identity/fingerprint checks prevent it from silently reconnecting the catalogue entry to an unrelated project.
+The previously outstanding physical-device and cross-device portability phase has now been completed successfully.
 
-Do **not** add security-scoped-bookmark complexity merely because it was previously anticipated. The current macOS behaviour is working. Security-scoped bookmarks remain a fallback if physical-device, iCloud Drive or other document-provider testing demonstrates a real persistence/access failure.
+## Standalone `.eccalc`
 
-# STILL REQUIRING INTEGRATION / MANUAL COVERAGE
+- [x] Current branch builds and runs on a physical iPhone.
+- [x] Fixed macOS-only bookmark options so shared Project Library code compiles on iOS while retaining macOS security-scoped bookmark behaviour.
+- [x] Save/export through Files/iCloud Drive produces a valid `.eccalc` document.
+- [x] Saved calculation reopens on iPhone with inputs, layers, embedded materials and results intact.
+- [x] iPhone-created calculation opens correctly on Mac.
+- [x] Mac modifications are visible when the same calculation is reopened on iPhone.
+- [x] iOS duplicate-file `OSStatus -48` behaviour from exporter replacement was avoided by implementing true document-style in-place Save.
+- [x] Opened standalone calculations retain their file URL and use security-scoped access for in-place Save.
+- [x] Save As remains available for deliberately creating a separate file.
+- [x] Two independently saved/opened `.eccalc` files were modified and reopened; changes remained isolated to the intended file.
+- [x] Full regression suite remained **183/183 passing** after these changes.
 
-Do not infer the following solely from the 183 green tests or the successful macOS local-filesystem testing:
+## Project `.ecproject`
 
-- real document-picker/Files/iCloud-provider behaviour on a physical iPhone/iPad;
-- persistent access after physical-device termination/relaunch;
-- iCloud/document-provider move/rename/offline/access behaviour;
-- cross-device Mac ↔ iPhone portability;
+- [x] Mac-modified project opened on iPhone with all current calculations and correct values.
+- [x] Adding another project case on Mac was correctly reflected when the authoritative project was subsequently opened on iPhone.
+- [x] Project Library initially displayed its cached/last-known calculation count after an external edit; after opening the project it refreshed to the current count as designed.
+- [x] Added a case on iPhone, deleted an existing case, saved the project, then opened it on Mac; additions/deletions and remaining calculation data were correct.
+- [x] Bidirectional Mac ↔ iPhone project portability through iCloud Drive is therefore verified.
+
+### Observation retained for future regression testing
+
+During one early iPhone attempt to open a Mac-updated project, the app reported that it did not have access to the file. A second attempt opened the current file correctly. This was **not reproduced** in the subsequent cold-start/cross-device testing, where the current project opened normally. Treat this as an unreproduced observation rather than a confirmed defect; investigate only if it recurs.
+
+# REMAINING MANUAL / INTEGRATION COVERAGE
+
+The core portability milestone is complete. Remaining useful coverage is non-blocking unless a regression appears:
+
+- iCloud/document-provider move/rename/offline behaviour on physical iPhone/iPad;
+- longer-term persistent access across provider/account state changes;
 - complete tooltip/accessibility and localization audit;
-- final light/dark mode and interface-density visual checks for the project workflow.
-
-# EXACT NEXT VALIDATION PHASE — PHYSICAL IPHONE / DOCUMENT PROVIDERS
-
-Required workflow:
-
-1. Install and launch the current build on a physical iPhone.
-2. Verify Project Library layout, navigation and controls at phone width.
-3. Create a named project on iPhone and verify rename behaviour persists.
-4. Save/export `.eccalc` and `.ecproject` files through Files/iCloud Drive and confirm correct extensions.
-5. Import/open `.eccalc` and `.ecproject` through the iOS document picker.
-6. Verify project-owned Pipe Weight & Buoyancy cases restore every input/layer/material correctly.
-7. Open → edit → Update Project → Save Project → terminate app → relaunch → reopen and verify edited state/results persist.
-8. Verify embedded project materials do not silently populate or overwrite the global Material Library.
-9. Exercise moved/renamed/deleted project files through the actual document provider where practical.
-10. If persistent access fails, investigate security-scoped bookmark persistence/resolution; otherwise leave the simpler working mechanism intact.
-11. Proceed to Mac ↔ iPhone portability testing.
-
-# CROSS-DEVICE PORTABILITY AFTER PHYSICAL-DEVICE VALIDATION
-
-- [ ] Mac → iPhone `.eccalc` with a clean/different local material library reproduces the saved result.
-- [ ] Mac → iPhone `.ecproject` reproduces project calculations without originating library materials.
-- [ ] Repeat iPhone → Mac.
-- [ ] Exercise the same project through iCloud Drive where practical.
-- [ ] Confirm the portable file remains authoritative and no device-local material library is required to reproduce the calculation.
+- final light/dark mode and interface-density visual checks for the project workflow;
+- repeat cross-device tests as regression coverage after future persistence/schema changes.
 
 # ARCHITECTURE DECISIONS TO PRESERVE
 
@@ -143,6 +148,12 @@ Required workflow:
 A transferred standalone calculation or project must be wholly self-contained. Embedded material definitions are part of the engineering record and authoritative for reproducing the saved state. A changed local Material Library must not silently alter a historical calculation.
 
 Standalone calculations use `.eccalc`; projects use `.ecproject`.
+
+## Standalone Save / Save As semantics
+
+An opened standalone calculation retains its source URL and supports true in-place **Save**. **Save As…** deliberately creates/selects another file. In-place saves use security-scoped resource access where supplied by the document provider and preserve the existing document/calculation UUID identity.
+
+Do not revert to using exporter replacement as the normal Save path on iOS; physical-device testing demonstrated an `OSStatus -48` duplicate-file failure when attempting to replace an existing file that way.
 
 ## Project ownership and save boundaries
 
@@ -160,7 +171,9 @@ Opening another file representing the same project UUID must not silently create
 
 The Project Library is a catalogue, not a second copy of project data. The `.ecproject` file remains authoritative. Catalogue metadata may include project UUID, title, file location, calculation count and modified date.
 
-Persistent external-file access must respect platform sandboxing/document-provider behaviour. The tested macOS local-filesystem mechanism currently survives relaunch and file moves. Add security-scoped bookmark persistence only if another supported environment demonstrates that it is necessary.
+Cached metadata may be stale after another device modifies the authoritative file. This is acceptable provided opening the project reads the current `.ecproject` and refreshes the catalogue metadata, which physical-device testing verified.
+
+Persistent external-file access must respect platform sandboxing/document-provider behaviour. Security-scoped bookmark resolution is platform-conditional where required, and imported/opened iOS document URLs use security-scoped resource access.
 
 ## Material reconciliation
 
@@ -170,7 +183,9 @@ Persistent external-file access must respect platform sandboxing/document-provid
 - Imported data must not gain protected built-in status from untrusted metadata.
 - Historical calculations continue using their embedded definition unless the user deliberately adopts a different definition.
 
-# DEFERRED ROADMAP — AFTER PROJECT DOCUMENTS ARE STABLE
+# DEFERRED ROADMAP — NEXT PHASE SELECTION
+
+Portable document/project infrastructure has reached a validated cross-device checkpoint. Candidate next phases include:
 
 - project metadata/groups/folders refinements;
 - shared project parameters;
@@ -229,4 +244,4 @@ git commit -m "Description of changes"
 git push
 ```
 
-The 171-test checkpoint branch remains useful for historical recovery, but it predates the completed project lifecycle/dirty-state and recovery work. Prefer the current feature branch for ongoing development.
+The 171-test checkpoint branch remains useful for historical recovery, but it predates the completed project lifecycle/dirty-state, recovery and physical-device portability work. Prefer the current feature branch for ongoing development.
