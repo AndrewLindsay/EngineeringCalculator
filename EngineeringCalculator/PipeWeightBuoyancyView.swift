@@ -17,6 +17,8 @@ struct PipeWeightBuoyancyView: View {
     @State private var showingCalculationExporter = false
     @State private var calculationExportDocument: StandaloneCalculationFileDocument?
     @State private var calculationSaveError: String?
+    @State private var calculationSaveMessage: String?
+    @State private var documentSession = StandaloneCalculationDocumentSession()
     @State private var projectUpdateMessage: String?
     @State private var baselineSignature: EditSignature?
     @State private var showingUnsavedCalculationAlert = false
@@ -54,21 +56,45 @@ struct PipeWeightBuoyancyView: View {
                 ToolbarItem(placement: .navigation) { Button { requestCalculationExit() } label: { Label("Back", systemImage: "chevron.left") }.help("Return to project") }
             }
             ToolbarItem {
-                if projectUpdateContext != nil { Button { _ = updateProjectCase() } label: { Label("Update Project Case", systemImage: "arrow.triangle.2.circlepath") }.disabled(result == nil || !hasUnsavedProjectCaseChanges).help(Text("tooltip.updateProjectCase")) }
-                else { Button { saveStandaloneCalculation() } label: { Label("Save Calculation…", systemImage: "square.and.arrow.down") }.disabled(result == nil).help(Text("tooltip.saveCalculation")) }
+                if projectUpdateContext != nil {
+                    Button { _ = updateProjectCase() } label: { Label("Update Project Case", systemImage: "arrow.triangle.2.circlepath") }.disabled(result == nil || !hasUnsavedProjectCaseChanges).help(Text("tooltip.updateProjectCase"))
+                } else {
+                    Menu {
+                        Button { saveStandaloneCalculation() } label: { Label("Save", systemImage: "square.and.arrow.down") }
+                            .disabled(!documentSession.canSaveInPlace)
+                        Button { saveStandaloneCalculationAs() } label: { Label("Save As…", systemImage: "doc.on.doc") }
+                    } label: { Label(documentSession.canSaveInPlace ? "Save" : "Save As…", systemImage: "square.and.arrow.down") }
+                    .disabled(result == nil)
+                    .help(Text("tooltip.saveCalculation"))
+                }
             }
         }
-        .standaloneCalculationOpen { document in try loadStandaloneCalculation(document) }
+        .standaloneCalculationOpen(onOpenURL: { url, document in
+            documentSession.opened(document: document, at: url)
+        }) { document in
+            try loadStandaloneCalculation(document)
+        }
         .onAppear { initialisePipeMaterialSelection() }
         .onChange(of: materialStore.steelMaterials.map(\.id)) { _, _ in initialisePipeMaterialSelection() }
         .sheet(isPresented: $showingAddLayer) { NavigationStack { AddPipeLayerView { m, t in extraLayers.append(EditableLayer(material: m, thicknessMM: t)) }.environmentObject(materialStore) } }
-        .fileExporter(isPresented: $showingCalculationExporter, document: calculationExportDocument, contentType: .engineeringCalculation, defaultFilename: calculationExportDocument.map { CalculationDocumentFileType.suggestedFilename(for: $0.document) }) { outcome in if case let .failure(error) = outcome { calculationSaveError = error.localizedDescription } }
+        .fileExporter(isPresented: $showingCalculationExporter, document: calculationExportDocument, contentType: .engineeringCalculation, defaultFilename: calculationExportDocument.map { CalculationDocumentFileType.suggestedFilename(for: $0.document) }) { outcome in
+            switch outcome {
+            case .success(let url):
+                if let exported = calculationExportDocument?.document {
+                    documentSession.opened(document: exported, at: url)
+                    calculationSaveMessage = "Calculation saved as \(url.lastPathComponent). Future Save operations will update this file."
+                }
+            case .failure(let error):
+                calculationSaveError = error.localizedDescription
+            }
+        }
         .alert("Unsaved Calculation Changes", isPresented: $showingUnsavedCalculationAlert) {
             Button("Update Project") { if updateProjectCase(showConfirmation: false) { dismiss() } }
             Button("Discard Changes", role: .destructive) { dismiss() }
             Button("Cancel", role: .cancel) { }
         } message: { Text("This calculation has changes that have not yet been copied into the project. Update the project case before returning?") }
         .alert("Save Calculation Failed", isPresented: Binding(get: { calculationSaveError != nil }, set: { if !$0 { calculationSaveError = nil } })) { Button("OK", role: .cancel) { calculationSaveError = nil } } message: { Text(calculationSaveError ?? "") }
+        .alert("Calculation Saved", isPresented: Binding(get: { calculationSaveMessage != nil }, set: { if !$0 { calculationSaveMessage = nil } })) { Button("OK", role: .cancel) { calculationSaveMessage = nil } } message: { Text(calculationSaveMessage ?? "") }
         .alert("Project Case Updated", isPresented: Binding(get: { projectUpdateMessage != nil }, set: { if !$0 { projectUpdateMessage = nil } })) { Button("OK", role: .cancel) { projectUpdateMessage = nil } } message: { Text(projectUpdateMessage ?? "") }
     }
 
@@ -90,7 +116,25 @@ struct PipeWeightBuoyancyView: View {
         guard let context = projectUpdateContext else { return false }
         do { try context.update(try makeCurrentDocument(name: context.calculationName)); baselineSignature = currentSignature; if showConfirmation { projectUpdateMessage = "\(context.calculationName) has been updated in the current project. Save the project to persist the change to its .ecproject file." }; return true } catch { calculationSaveError = error.localizedDescription; return false }
     }
-    private func saveStandaloneCalculation() { do { calculationExportDocument = StandaloneCalculationFileDocument(document: try makeCurrentDocument(name: String(localized: "pipeWeight.title"))); showingCalculationExporter = true } catch { calculationSaveError = error.localizedDescription } }
+    private func saveStandaloneCalculation() {
+        guard documentSession.canSaveInPlace else { saveStandaloneCalculationAs(); return }
+        do {
+            let name = documentSession.originalDocument?.title ?? String(localized: "pipeWeight.title")
+            try documentSession.save(try makeCurrentDocument(name: name))
+            calculationSaveMessage = "Changes were saved to the existing calculation file."
+        } catch { calculationSaveError = error.localizedDescription }
+    }
+    private func saveStandaloneCalculationAs() {
+        do {
+            let name = documentSession.originalDocument?.title ?? String(localized: "pipeWeight.title")
+            var document = try makeCurrentDocument(name: name)
+            if let original = documentSession.originalDocument {
+                document = documentSession.preservingIdentity(of: original, in: document)
+            }
+            calculationExportDocument = StandaloneCalculationFileDocument(document: document)
+            showingCalculationExporter = true
+        } catch { calculationSaveError = error.localizedDescription }
+    }
 
     @ViewBuilder private var pipeGeometrySection: some View {
         Section(String(localized: "pipeWeight.section.geometry")) {
