@@ -138,9 +138,14 @@ final class ProjectLibraryStore: ObservableObject {
 
         do {
             var isStale = false
+#if os(macOS)
+            let resolutionOptions: URL.BookmarkResolutionOptions = [.withSecurityScope]
+#else
+            let resolutionOptions: URL.BookmarkResolutionOptions = []
+#endif
             let url = try URL(
                 resolvingBookmarkData: bookmarkData,
-                options: [.withSecurityScope],
+                options: resolutionOptions,
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             ).standardizedFileURL
@@ -169,11 +174,19 @@ final class ProjectLibraryStore: ObservableObject {
     }
 
     private func makeBookmark(for url: URL) -> Data? {
-        try? url.bookmarkData(
+#if os(macOS)
+        return try? url.bookmarkData(
             options: [.withSecurityScope],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
+#else
+        return try? url.bookmarkData(
+            options: [],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+#endif
     }
 
     private func load() {
