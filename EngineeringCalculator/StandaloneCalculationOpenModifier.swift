@@ -33,6 +33,12 @@ extension EnvironmentValues {
 /// File reading and generic document validation live here; each calculator owns
 /// the restoration of its own state and returns a user-facing success message.
 ///
+/// `onOpenURL` is called while the imported URL is still inside its security-scoped
+/// access window. A calculator can retain that URL and later request scoped access
+/// again to implement a true Save operation, rather than forcing every edit through
+/// Save As / fileExporter. This is especially important on iOS, where exporting to
+/// an existing filename is not a reliable replacement workflow.
+///
 /// A project workspace can also inject an in-memory standalone document through
 /// `initialStandaloneCalculationDocument`. This deliberately reuses the exact same
 /// calculator restoration path as opening an .eccalc file, so project cases do not
@@ -45,6 +51,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
     @State private var didRestoreInitialDocument = false
 
     let onOpen: (CalculationDocument) throws -> String
+    let onOpenURL: ((URL) -> Void)?
 
     func body(content: Content) -> some View {
         content
@@ -124,6 +131,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
             }
 
             validationMessage = try onOpen(document)
+            onOpenURL?(url)
         } catch {
             validationError = error.localizedDescription
         }
@@ -132,8 +140,9 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
 
 extension View {
     func standaloneCalculationOpen(
+        onOpenURL: ((URL) -> Void)? = nil,
         onOpen: @escaping (CalculationDocument) throws -> String
     ) -> some View {
-        modifier(StandaloneCalculationOpenModifier(onOpen: onOpen))
+        modifier(StandaloneCalculationOpenModifier(onOpen: onOpen, onOpenURL: onOpenURL))
     }
 }
