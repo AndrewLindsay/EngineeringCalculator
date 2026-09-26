@@ -5,8 +5,6 @@ private struct InitialStandaloneCalculationDocumentKey: EnvironmentKey {
     static let defaultValue: CalculationDocument? = nil
 }
 
-/// Context supplied by a project workspace when a calculator is editing a project-owned case.
-/// Standalone calculators see nil and retain their normal Save Calculation workflow.
 struct ProjectCalculationUpdateContext {
     let calculationID: UUID
     let calculationName: String
@@ -29,20 +27,69 @@ extension EnvironmentValues {
     }
 }
 
-/// Reusable UI for opening a portable standalone calculation.
-/// File reading and generic document validation live here; each calculator owns
-/// the restoration of its own state and returns a user-facing success message.
-///
-/// `onOpenURL` is called while the imported URL is still inside its security-scoped
-/// access window. A calculator can retain that URL and later request scoped access
-/// again to implement a true Save operation, rather than forcing every edit through
-/// Save As / fileExporter. This is especially important on iOS, where exporting to
-/// an existing filename is not a reliable replacement workflow.
-///
-/// A project workspace can also inject an in-memory standalone document through
-/// `initialStandaloneCalculationDocument`. This deliberately reuses the exact same
-/// calculator restoration path as opening an .eccalc file, so project cases do not
-/// develop a second, subtly different loading implementation.
+/// Reusable state for a standalone calculation that was opened from a file.
+/// It preserves document/calculation identity and performs a true in-place Save.
+struct StandaloneCalculationDocumentSession {
+    var url: URL?
+    var originalDocument: CalculationDocument?
+
+    var canSaveInPlace: Bool { url != nil && originalDocument != nil }
+
+    mutating func opened(document: CalculationDocument, at url: URL) {
+        originalDocument = document
+        self.url = url
+    }
+
+    mutating func save(_ updatedDocument: CalculationDocument) throws {
+        guard let url, let originalDocument else {
+            throw CalculationDocumentFileError.cannotWrite("No existing calculation file is open. Use Save As to choose a location first.")
+        }
+
+        let document = preservingIdentity(of: originalDocument, in: updatedDocument)
+        let hasAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if hasAccess { url.stopAccessingSecurityScopedResource() }
+        }
+
+        try CalculationDocumentFileIO.write(document, to: url)
+        self.originalDocument = document
+    }
+
+    func preservingIdentity(of original: CalculationDocument, in updated: CalculationDocument) -> CalculationDocument {
+        var result = updated
+        result = CalculationDocument(
+            id: original.id,
+            documentFormatVersion: updated.documentFormatVersion,
+            kind: updated.kind,
+            title: updated.title,
+            createdAt: original.createdAt,
+            modifiedAt: updated.modifiedAt,
+            calculations: updated.calculations,
+            embeddedMaterials: updated.embeddedMaterials,
+            notes: updated.notes
+        )
+
+        if original.calculations.count == 1, result.calculations.count == 1 {
+            let oldCalculation = original.calculations[0]
+            let newCalculation = result.calculations[0]
+            result.calculations[0] = SavedCalculation(
+                id: oldCalculation.id,
+                name: newCalculation.name,
+                calculatorID: newCalculation.calculatorID,
+                calculatorSchemaVersion: newCalculation.calculatorSchemaVersion,
+                createdAt: oldCalculation.createdAt,
+                modifiedAt: newCalculation.modifiedAt,
+                inputs: newCalculation.inputs,
+                outputs: newCalculation.outputs,
+                assumptions: newCalculation.assumptions,
+                validationMessages: newCalculation.validationMessages,
+                notes: newCalculation.notes
+            )
+        }
+        return result
+    }
+}
+
 struct StandaloneCalculationOpenModifier: ViewModifier {
     @Environment(\.initialStandaloneCalculationDocument) private var initialDocument
     @State private var showingImporter = false
@@ -51,7 +98,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
     @State private var didRestoreInitialDocument = false
 
     let onOpen: (CalculationDocument) throws -> String
-    let onOpenURL: ((URL) -> Void)?
+    let onOpenURL: ((URL, CalculationDocument) -> Void)?
 
     func body(content: Content) -> some View {
         content
@@ -118,9 +165,6 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
                 if hasAccess { url.stopAccessingSecurityScopedResource() }
             }
 
-            // A SwiftUI fileImporter can vend a security-scoped provider URL whose
-            // temporary filename has no extension. Selection has already been filtered
-            // by UTType, so decode the payload and validate the document kind instead.
             let data = try Data(contentsOf: url)
             let document = try CalculationDocumentFileIO.document(from: data)
             guard document.kind == .standaloneCalculation else {
@@ -131,7 +175,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
             }
 
             validationMessage = try onOpen(document)
-            onOpenURL?(url)
+            onOpenURL?(url, document)
         } catch {
             validationError = error.localizedDescription
         }
@@ -140,7 +184,7 @@ struct StandaloneCalculationOpenModifier: ViewModifier {
 
 extension View {
     func standaloneCalculationOpen(
-        onOpenURL: ((URL) -> Void)? = nil,
+        onOpenURL: ((URL, CalculationDocument) -> Void)? = nil,
         onOpen: @escaping (CalculationDocument) throws -> String
     ) -> some View {
         modifier(StandaloneCalculationOpenModifier(onOpen: onOpen, onOpenURL: onOpenURL))
