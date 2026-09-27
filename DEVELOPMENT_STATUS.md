@@ -1,10 +1,10 @@
 # Engineering Calculator — Development Status & Roadmap
 
-**Last updated:** 26 September 2026  
-**Status:** **SAFE HOLD POINT — physical iPhone/iCloud and bidirectional Mac ↔ iPhone portability verified; 183-test checkpoint green**  
-**Active development branch:** `feature/portable-calculation-documents`  
-**Earlier recovery branch:** `checkpoint/project-library-171-tests`  
-**Current focus:** portable calculation/project document milestone validated; select next roadmap phase  
+**Last updated:** 27 September 2026  
+**Status:** **PORTABLE DOCUMENT / PROJECT MILESTONE COMPLETE — merged to `main`; 183-test checkpoint green**  
+**Active stable branch:** `main`  
+**Next development branch:** `feature/project-parameters-calculation-chaining`  
+**Current focus:** shared project parameters and calculation chaining using stable input/output identifiers  
 **Last user-verified automated checkpoint:** **183 tests passed, 0 failures**
 
 Read `AGENTS.md` first, then this file whenever resuming or refreshing development status.
@@ -13,14 +13,14 @@ Read `AGENTS.md` first, then this file whenever resuming or refreshing developme
 
 This is the authoritative restart point.
 
-1. Confirm branch `feature/portable-calculation-documents`.
+1. Confirm `main` is clean and synchronized before starting/resuming feature work. The next feature branch is `feature/project-parameters-calculation-chaining`.
 2. Run `git pull`, `git status`, and `git branch --show-current`.
 3. Build the macOS target and run the complete suite with **⌘U** before/after substantive changes. Expected baseline: **183/183 tests passing**.
-4. Physical iPhone / Files / iCloud Drive validation and bidirectional Mac ↔ iPhone portability of `.eccalc` and `.ecproject` have now been manually verified.
+4. Physical iPhone / Files / iCloud Drive validation and bidirectional Mac ↔ iPhone portability of `.eccalc` and `.ecproject` are manually verified and the completed feature has been merged to `main`.
 5. Do **not** reimplement standalone in-place Save/Save As, project-owned calculation editing, dirty-state handling, independent project copies, UUID-based project identity, or the Project Library recovery workflow; these are established and tested.
 6. Treat `.eccalc` / `.ecproject` files as authoritative portable engineering data and persistent UUIDs as authoritative identity.
 7. The Project Library is cached catalogue metadata; externally changed project metadata may remain stale until the authoritative project is opened, after which the library refreshes correctly.
-8. Select the next roadmap phase rather than adding more portability infrastructure without a demonstrated failure.
+8. For the next phase, establish stable calculation input/output identifiers before adding UI-level parameter links or chaining. Persisted identifiers must be designed as long-lived schema contracts.
 
 # CHECKPOINT SUMMARY
 
@@ -183,13 +183,53 @@ Persistent external-file access must respect platform sandboxing/document-provid
 - Imported data must not gain protected built-in status from untrusted metadata.
 - Historical calculations continue using their embedded definition unless the user deliberately adopts a different definition.
 
-# DEFERRED ROADMAP — NEXT PHASE SELECTION
+# NEXT DEVELOPMENT PHASE — SHARED PROJECT PARAMETERS & CALCULATION CHAINING
 
-Portable document/project infrastructure has reached a validated cross-device checkpoint. Candidate next phases include:
+The next phase turns projects from containers of independent calculations into connected engineering workspaces.
+
+## Phase 1 — Stable calculation input/output identifiers
+
+- Define generic, stable identifiers for calculation inputs and outputs.
+- Begin with the existing Pipe Weight & Buoyancy and Pipe Heat Transfer calculators.
+- Keep display labels separate from stable identifiers.
+- Associate identifiers with engineering quantity/dimensional metadata so compatibility can be checked independently of display units.
+- Add deterministic tests for identifier uniqueness, stability and calculator contracts.
+- Treat persisted identifiers as long-lived schema contracts: do not casually rename them once documents can contain references.
+
+## Phase 2 — Shared project parameters
+
+- Add project-owned parameter records with persistent UUID identity.
+- Store stable engineering quantity identifier, display name, value, unit/dimensional metadata and optional description.
+- Allow compatible calculation inputs to source a value from a shared project parameter while retaining explicit local-value behaviour when unlinked.
+- Persist project parameters wholly inside `.ecproject`.
+
+## Phase 3 — Calculation chaining
+
+- Allow a compatible calculation input to reference another project calculation's stable output identifier.
+- Persist links by source calculation UUID + stable output identifier, never by display name or array position.
+- Resolve unit-compatible values without silently changing engineering meaning.
+- Make broken/missing references explicit rather than substituting a guessed value.
+
+## Phase 4 — Dependency integrity
+
+Add explicit handling and tests for:
+
+- deleted source calculations;
+- renamed calculations;
+- missing/invalid outputs;
+- incompatible engineering quantities/units;
+- circular dependencies;
+- downstream stale state and recalculation order;
+- project copy/duplicate semantics for internal references;
+- portable encode/decode/reopen retaining all parameter/link identities.
+
+UI work should follow the model/contracts rather than lead them.
+
+# DEFERRED ROADMAP
+
+After the shared-parameter/chaining phase, candidate phases include:
 
 - project metadata/groups/folders refinements;
-- shared project parameters;
-- calculation chaining using stable input/output identifiers;
 - schema migration and safe unknown/newer-schema handling;
 - formal calculation report/export capability;
 - deliberate whole-app String Catalog extraction and additional-language work;
@@ -207,16 +247,16 @@ Never silently repair or substitute engineering data merely to make a saved calc
 
 # GIT / RECOVERY
 
-Development branch:
+Stable branch:
 
 ```text
-feature/portable-calculation-documents
+main
 ```
 
-Earlier recovery branch:
+Next development branch:
 
 ```text
-checkpoint/project-library-171-tests
+feature/project-parameters-calculation-chaining
 ```
 
 Current user-verified suite baseline:
@@ -224,6 +264,8 @@ Current user-verified suite baseline:
 ```text
 183 tests passed, 0 failures
 ```
+
+The former portability and recovery branches are historical/superseded; `main` now contains the completed work.
 
 Normal resume workflow:
 
@@ -243,5 +285,3 @@ git add .
 git commit -m "Description of changes"
 git push
 ```
-
-The 171-test checkpoint branch remains useful for historical recovery, but it predates the completed project lifecycle/dirty-state, recovery and physical-device portability work. Prefer the current feature branch for ongoing development.
