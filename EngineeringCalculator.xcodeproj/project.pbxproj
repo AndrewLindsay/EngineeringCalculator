@@ -10,6 +10,38 @@
 		6F25CC72305D4DAF00862599 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6F25CC71305D4DAF00862599 /* Assets.xcassets */; };
 		6F347569305D89420071CFC6 /* MaterialLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F347567305D89420071CFC6 /* MaterialLibrary.swift */; };
 		6F34756A305D89420071CFC6 /* MaterialLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F347568305D89420071CFC6 /* MaterialLibraryView.swift */; };
+		6F9E4EDC305F7DD3009583AE /* MaterialPortableFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDB305F7DD3009583AE /* MaterialPortableFileTests.swift */; };
+		6F9E4EDE305F7F5A009583AE /* MaterialPortableDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */; };
+		6F9E4EE0305F8013009583AE /* MaterialImportExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */; };
+		6F9E4EE3305F933B009583AE /* MaterialComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EE2305F933B009583AE /* MaterialComparison.swift */; };
+		6F9E4EE7305F96A4009583AE /* MaterialComparisonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */; };
+		6F9E4EE9305FA001009583AE /* MacMaterialComparisonGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EE8305FA001009583AE /* MacMaterialComparisonGrid.swift */; };
+		6F9E4EED30621F7F009583AE /* PipeHeatTransferCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EEC30621F7F009583AE /* PipeHeatTransferCalculator.swift */; };
+		6F9E4EEF30621F8F009583AE /* PipeHeatTransferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EEE30621F8F009583AE /* PipeHeatTransferView.swift */; };
+		6F9E4EF130622021009583AE /* PipeHeatTransferCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EF030622021009583AE /* PipeHeatTransferCalculatorTests.swift */; };
+		6F9E4EF330628927009583AE /* CalculationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EF230628927009583AE /* CalculationPersistence.swift */; };
+		6F9E4EF53062893F009583AE /* CalculationPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EF43062893F009583AE /* CalculationPersistenceTests.swift */; };
+		6F9E4EF730628B89009583AE /* MaterialFingerprint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EF630628B89009583AE /* MaterialFingerprint.swift */; };
+		6F9E4EF930628B9A009583AE /* MaterialFingerprintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EF830628B9A009583AE /* MaterialFingerprintTests.swift */; };
+		6F9E4EFB30628D4E009583AE /* MaterialReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EFA30628D4E009583AE /* MaterialReconciliationTests.swift */; };
+		6F9E4EFD30628D5C009583AE /* MaterialReconciliation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EFC30628D5C009583AE /* MaterialReconciliation.swift */; };
+		6F9E4EFF30628EE2009583AE /* MaterialLibraryPortableCalculationImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4EFE30628EE2009583AE /* MaterialLibraryPortableCalculationImportTests.swift */; };
+		6F9E4F0130629024009583AE /* CalculationDocumentFileIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F0030629024009583AE /* CalculationDocumentFileIO.swift */; };
+		6F9E4F0330629033009583AE /* CalculationDocumentFileIOTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F0230629033009583AE /* CalculationDocumentFileIOTests.swift */; };
+		6F9E4F053062930D009583AE /* PipeWeightBuoyancyPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F043062930D009583AE /* PipeWeightBuoyancyPersistence.swift */; };
+		6F9E4F073062931B009583AE /* PipeWeightBuoyancyPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F063062931B009583AE /* PipeWeightBuoyancyPersistenceTests.swift */; };
+		6F9E4F09306294AD009583AE /* PipeHeatTransferPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F08306294AD009583AE /* PipeHeatTransferPersistence.swift */; };
+		6F9E4F0B306294BB009583AE /* PipeHeatTransferPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F0A306294BB009583AE /* PipeHeatTransferPersistenceTests.swift */; };
+		6F9E4F0D306295F3009583AE /* StandaloneCalculationDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F0C306295F3009583AE /* StandaloneCalculationDocument.swift */; };
+		6F9E4F11306299AA009583AE /* StandaloneCalculationOpenValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F10306299AA009583AE /* StandaloneCalculationOpenValidatorTests.swift */; };
+		6F9E4F1330629A1E009583AE /* StandaloneCalculationOpenValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1230629A1E009583AE /* StandaloneCalculationOpenValidator.swift */; };
+		6F9E4F1530629B4E009583AE /* StandaloneCalculationOpenModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1430629B4E009583AE /* StandaloneCalculationOpenModifier.swift */; };
+		6F9E4F173062A743009583AE /* ProjectWorkspaceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F163062A743009583AE /* ProjectWorkspaceModel.swift */; };
+		6F9E4F193062A751009583AE /* ProjectWorkspaceModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F183062A751009583AE /* ProjectWorkspaceModelTests.swift */; };
+		6F9E4F1B3062A83A009583AE /* ProjectWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1A3062A83A009583AE /* ProjectWorkspaceView.swift */; };
+		6F9E4F1E306390CB009583AE /* ProjectLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1C306390CB009583AE /* ProjectLibraryStore.swift */; };
+		6F9E4F1F306390CB009583AE /* ProjectLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9E4F1D306390CB009583AE /* ProjectLibraryView.swift */; };
+		6F9E4F233063EF15009583AE /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 6F9E4F223063EF15009583AE /* Localizable.xcstrings */; };
 		A001 /* EngineeringCalculatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* EngineeringCalculatorApp.swift */; };
 		A002 /* CalculationDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* CalculationDefinition.swift */; };
 		A003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* HomeView.swift */; };
@@ -20,6 +52,9 @@
 		A008 /* MathEquationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F008 /* MathEquationView.swift */; };
 		A009 /* CalculationDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F009 /* CalculationDetailsView.swift */; };
 		A010 /* EngineeringDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F010 /* EngineeringDataModels.swift */; };
+		A011 /* MaterialTemperaturePropertyEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F011 /* MaterialTemperaturePropertyEditor.swift */; };
+		A012 /* MaterialPropertyResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F012 /* MaterialPropertyResolver.swift */; };
+		A013 /* PipeWeightMaterialValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F013 /* PipeWeightMaterialValidationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +71,39 @@
 		6F25CC71305D4DAF00862599 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6F347567305D89420071CFC6 /* MaterialLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibrary.swift; sourceTree = "<group>"; };
 		6F347568305D89420071CFC6 /* MaterialLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibraryView.swift; sourceTree = "<group>"; };
+		6F9E4EDB305F7DD3009583AE /* MaterialPortableFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialPortableFileTests.swift; sourceTree = "<group>"; };
+		6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialPortableDocuments.swift; sourceTree = "<group>"; };
+		6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialImportExportView.swift; sourceTree = "<group>"; };
+		6F9E4EE1305F8F2B009583AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6F9E4EE2305F933B009583AE /* MaterialComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialComparison.swift; sourceTree = "<group>"; };
+		6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialComparisonTests.swift; sourceTree = "<group>"; };
+		6F9E4EE8305FA001009583AE /* MacMaterialComparisonGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMaterialComparisonGrid.swift; sourceTree = "<group>"; };
+		6F9E4EEC30621F7F009583AE /* PipeHeatTransferCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeHeatTransferCalculator.swift; sourceTree = "<group>"; };
+		6F9E4EEE30621F8F009583AE /* PipeHeatTransferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeHeatTransferView.swift; sourceTree = "<group>"; };
+		6F9E4EF030622021009583AE /* PipeHeatTransferCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeHeatTransferCalculatorTests.swift; sourceTree = "<group>"; };
+		6F9E4EF230628927009583AE /* CalculationPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationPersistence.swift; sourceTree = "<group>"; };
+		6F9E4EF43062893F009583AE /* CalculationPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationPersistenceTests.swift; sourceTree = "<group>"; };
+		6F9E4EF630628B89009583AE /* MaterialFingerprint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFingerprint.swift; sourceTree = "<group>"; };
+		6F9E4EF830628B9A009583AE /* MaterialFingerprintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFingerprintTests.swift; sourceTree = "<group>"; };
+		6F9E4EFA30628D4E009583AE /* MaterialReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialReconciliationTests.swift; sourceTree = "<group>"; };
+		6F9E4EFC30628D5C009583AE /* MaterialReconciliation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialReconciliation.swift; sourceTree = "<group>"; };
+		6F9E4EFE30628EE2009583AE /* MaterialLibraryPortableCalculationImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialLibraryPortableCalculationImportTests.swift; sourceTree = "<group>"; };
+		6F9E4F0030629024009583AE /* CalculationDocumentFileIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDocumentFileIO.swift; sourceTree = "<group>"; };
+		6F9E4F0230629033009583AE /* CalculationDocumentFileIOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDocumentFileIOTests.swift; sourceTree = "<group>"; };
+		6F9E4F043062930D009583AE /* PipeWeightBuoyancyPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeWeightBuoyancyPersistence.swift; sourceTree = "<group>"; };
+		6F9E4F063062931B009583AE /* PipeWeightBuoyancyPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeWeightBuoyancyPersistenceTests.swift; sourceTree = "<group>"; };
+		6F9E4F08306294AD009583AE /* PipeHeatTransferPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeHeatTransferPersistence.swift; sourceTree = "<group>"; };
+		6F9E4F0A306294BB009583AE /* PipeHeatTransferPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeHeatTransferPersistenceTests.swift; sourceTree = "<group>"; };
+		6F9E4F0C306295F3009583AE /* StandaloneCalculationDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneCalculationDocument.swift; sourceTree = "<group>"; };
+		6F9E4F10306299AA009583AE /* StandaloneCalculationOpenValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneCalculationOpenValidatorTests.swift; sourceTree = "<group>"; };
+		6F9E4F1230629A1E009583AE /* StandaloneCalculationOpenValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneCalculationOpenValidator.swift; sourceTree = "<group>"; };
+		6F9E4F1430629B4E009583AE /* StandaloneCalculationOpenModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneCalculationOpenModifier.swift; sourceTree = "<group>"; };
+		6F9E4F163062A743009583AE /* ProjectWorkspaceModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceModel.swift; sourceTree = "<group>"; };
+		6F9E4F183062A751009583AE /* ProjectWorkspaceModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceModelTests.swift; sourceTree = "<group>"; };
+		6F9E4F1A3062A83A009583AE /* ProjectWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceView.swift; sourceTree = "<group>"; };
+		6F9E4F1C306390CB009583AE /* ProjectLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectLibraryStore.swift; sourceTree = "<group>"; };
+		6F9E4F1D306390CB009583AE /* ProjectLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectLibraryView.swift; sourceTree = "<group>"; };
+		6F9E4F223063EF15009583AE /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F001 /* EngineeringCalculatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringCalculatorApp.swift; sourceTree = "<group>"; };
 		F002 /* CalculationDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDefinition.swift; sourceTree = "<group>"; };
 		F003 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -46,6 +114,9 @@
 		F008 /* MathEquationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathEquationView.swift; sourceTree = "<group>"; };
 		F009 /* CalculationDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationDetailsView.swift; sourceTree = "<group>"; };
 		F010 /* EngineeringDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineeringDataModels.swift; sourceTree = "<group>"; };
+		F011 /* MaterialTemperaturePropertyEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialTemperaturePropertyEditor.swift; sourceTree = "<group>"; };
+		F012 /* MaterialPropertyResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialPropertyResolver.swift; sourceTree = "<group>"; };
+		F013 /* PipeWeightMaterialValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipeWeightMaterialValidationTests.swift; sourceTree = "<group>"; };
 		GITIGNORE /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		PRODUCTAPP /* EngineeringCalculator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EngineeringCalculator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		PRODUCTTEST /* EngineeringCalculatorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EngineeringCalculatorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -82,8 +153,32 @@
 		GAPP /* EngineeringCalculator */ = {
 			isa = PBXGroup;
 			children = (
+				6F9E4F223063EF15009583AE /* Localizable.xcstrings */,
+				6F9E4F1C306390CB009583AE /* ProjectLibraryStore.swift */,
+				6F9E4F1D306390CB009583AE /* ProjectLibraryView.swift */,
+				6F9E4F1A3062A83A009583AE /* ProjectWorkspaceView.swift */,
+				6F9E4F163062A743009583AE /* ProjectWorkspaceModel.swift */,
+				6F9E4F1430629B4E009583AE /* StandaloneCalculationOpenModifier.swift */,
+				6F9E4F1230629A1E009583AE /* StandaloneCalculationOpenValidator.swift */,
+				6F9E4F0C306295F3009583AE /* StandaloneCalculationDocument.swift */,
+				6F9E4F08306294AD009583AE /* PipeHeatTransferPersistence.swift */,
+				6F9E4F043062930D009583AE /* PipeWeightBuoyancyPersistence.swift */,
+				6F9E4F0030629024009583AE /* CalculationDocumentFileIO.swift */,
+				6F9E4EFC30628D5C009583AE /* MaterialReconciliation.swift */,
+				6F9E4EF630628B89009583AE /* MaterialFingerprint.swift */,
+				6F9E4EEC30621F7F009583AE /* PipeHeatTransferCalculator.swift */,
+				6F9E4EF230628927009583AE /* CalculationPersistence.swift */,
+				6F9E4EEE30621F8F009583AE /* PipeHeatTransferView.swift */,
+				6F9E4EE6305F96A4009583AE /* MaterialComparisonTests.swift */,
+				6F9E4EE2305F933B009583AE /* MaterialComparison.swift */,
+				6F9E4EE8305FA001009583AE /* MacMaterialComparisonGrid.swift */,
+				6F9E4EE1305F8F2B009583AE /* Info.plist */,
+				6F9E4EDF305F8013009583AE /* MaterialImportExportView.swift */,
+				6F9E4EDD305F7F5A009583AE /* MaterialPortableDocuments.swift */,
 				6F347567305D89420071CFC6 /* MaterialLibrary.swift */,
 				6F347568305D89420071CFC6 /* MaterialLibraryView.swift */,
+				F011 /* MaterialTemperaturePropertyEditor.swift */,
+				F012 /* MaterialPropertyResolver.swift */,
 				F001 /* EngineeringCalculatorApp.swift */,
 				F002 /* CalculationDefinition.swift */,
 				F003 /* HomeView.swift */,
@@ -99,7 +194,19 @@
 		GTEST /* EngineeringCalculatorTests */ = {
 			isa = PBXGroup;
 			children = (
+				6F9E4F183062A751009583AE /* ProjectWorkspaceModelTests.swift */,
+				6F9E4F10306299AA009583AE /* StandaloneCalculationOpenValidatorTests.swift */,
+				6F9E4F0A306294BB009583AE /* PipeHeatTransferPersistenceTests.swift */,
+				6F9E4F063062931B009583AE /* PipeWeightBuoyancyPersistenceTests.swift */,
+				6F9E4F0230629033009583AE /* CalculationDocumentFileIOTests.swift */,
+				6F9E4EFE30628EE2009583AE /* MaterialLibraryPortableCalculationImportTests.swift */,
+				6F9E4EF830628B9A009583AE /* MaterialFingerprintTests.swift */,
+				6F9E4EFA30628D4E009583AE /* MaterialReconciliationTests.swift */,
+				6F9E4EF43062893F009583AE /* CalculationPersistenceTests.swift */,
+				6F9E4EF030622021009583AE /* PipeHeatTransferCalculatorTests.swift */,
+				6F9E4EDB305F7DD3009583AE /* MaterialPortableFileTests.swift */,
 				F006 /* PipeWeightBuoyancyCalculatorTests.swift */,
+				F013 /* PipeWeightMaterialValidationTests.swift */,
 			);
 			path = EngineeringCalculatorTests;
 			sourceTree = "<group>";
@@ -207,6 +314,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F9E4F233063EF15009583AE /* Localizable.xcstrings in Resources */,
 				6F25CC72305D4DAF00862599 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -225,16 +333,37 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F9E4EE0305F8013009583AE /* MaterialImportExportView.swift in Sources */,
+				6F9E4F173062A743009583AE /* ProjectWorkspaceModel.swift in Sources */,
+				6F9E4EDE305F7F5A009583AE /* MaterialPortableDocuments.swift in Sources */,
+				6F9E4F1E306390CB009583AE /* ProjectLibraryStore.swift in Sources */,
+				6F9E4F1F306390CB009583AE /* ProjectLibraryView.swift in Sources */,
+				6F9E4F1B3062A83A009583AE /* ProjectWorkspaceView.swift in Sources */,
 				A001 /* EngineeringCalculatorApp.swift in Sources */,
+				6F9E4F1330629A1E009583AE /* StandaloneCalculationOpenValidator.swift in Sources */,
+				6F9E4EF330628927009583AE /* CalculationPersistence.swift in Sources */,
 				A002 /* CalculationDefinition.swift in Sources */,
 				6F347569305D89420071CFC6 /* MaterialLibrary.swift in Sources */,
 				6F34756A305D89420071CFC6 /* MaterialLibraryView.swift in Sources */,
+				6F9E4F1530629B4E009583AE /* StandaloneCalculationOpenModifier.swift in Sources */,
+				6F9E4F0D306295F3009583AE /* StandaloneCalculationDocument.swift in Sources */,
+				6F9E4EF730628B89009583AE /* MaterialFingerprint.swift in Sources */,
+				A011 /* MaterialTemperaturePropertyEditor.swift in Sources */,
+				6F9E4EED30621F7F009583AE /* PipeHeatTransferCalculator.swift in Sources */,
+				A012 /* MaterialPropertyResolver.swift in Sources */,
 				A003 /* HomeView.swift in Sources */,
 				A004 /* PipeWeightBuoyancyCalculator.swift in Sources */,
 				A005 /* PipeWeightBuoyancyView.swift in Sources */,
+				6F9E4EFD30628D5C009583AE /* MaterialReconciliation.swift in Sources */,
 				A008 /* MathEquationView.swift in Sources */,
+				6F9E4F053062930D009583AE /* PipeWeightBuoyancyPersistence.swift in Sources */,
 				A009 /* CalculationDetailsView.swift in Sources */,
+				6F9E4F09306294AD009583AE /* PipeHeatTransferPersistence.swift in Sources */,
 				A010 /* EngineeringDataModels.swift in Sources */,
+				6F9E4EEF30621F8F009583AE /* PipeHeatTransferView.swift in Sources */,
+				6F9E4EE3305F933B009583AE /* MaterialComparison.swift in Sources */,
+				6F9E4F0130629024009583AE /* CalculationDocumentFileIO.swift in Sources */,
+				6F9E4EE9305FA001009583AE /* MacMaterialComparisonGrid.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,7 +371,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F9E4EF930628B9A009583AE /* MaterialFingerprintTests.swift in Sources */,
+				6F9E4EDC305F7DD3009583AE /* MaterialPortableFileTests.swift in Sources */,
+				6F9E4EE7305F96A4009583AE /* MaterialComparisonTests.swift in Sources */,
+				6F9E4EFB30628D4E009583AE /* MaterialReconciliationTests.swift in Sources */,
+				6F9E4EF130622021009583AE /* PipeHeatTransferCalculatorTests.swift in Sources */,
+				6F9E4EF53062893F009583AE /* CalculationPersistenceTests.swift in Sources */,
+				6F9E4F0B306294BB009583AE /* PipeHeatTransferPersistenceTests.swift in Sources */,
+				6F9E4F0330629033009583AE /* CalculationDocumentFileIOTests.swift in Sources */,
+				6F9E4F073062931B009583AE /* PipeWeightBuoyancyPersistenceTests.swift in Sources */,
+				6F9E4F11306299AA009583AE /* StandaloneCalculationOpenValidatorTests.swift in Sources */,
 				A006 /* PipeWeightBuoyancyCalculatorTests.swift in Sources */,
+				6F9E4EFF30628EE2009583AE /* MaterialLibraryPortableCalculationImportTests.swift in Sources */,
+				6F9E4F193062A751009583AE /* ProjectWorkspaceModelTests.swift in Sources */,
+				A013 /* PipeWeightMaterialValidationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,6 +413,7 @@
 				DEVELOPMENT_TEAM = KL5TC2ZM6A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EngineeringCalculator/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Engineering Calculator";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -303,6 +446,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = KL5TC2ZM6A;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EngineeringCalculator/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Engineering Calculator";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
